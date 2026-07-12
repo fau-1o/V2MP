@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "v2mp"
+version = "1.0.0"
+description = "Convert MP4 videos into Google Motion Photo compatible JPEG files"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "piexif>=1.1.3",
+    "lxml>=4.9.0",
+    "Pillow>=10.0.0",
+]
+
+[project.scripts]
+v2mp = "v2mp.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["v2mp*"]
+
+[tool.setuptools.package-data]
+v2mp = ["py.typed"]
