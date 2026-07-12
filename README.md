@@ -9,7 +9,7 @@ The output is just **one `.jpg` file**, no extra files.
 
 ## 🌐 Try it in your browser — no install needed
 
-**[Open the web app](https://fau-1o.github.io/v2mp/)**
+**[Open the web app](https://fau-1o.github.io/V2MP/)**
 
 Everything runs locally on your own device (powered by
 [ffmpeg.wasm](https://ffmpegwasm.netlify.app/)) — no video is ever
