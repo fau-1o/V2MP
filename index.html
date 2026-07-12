@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V2MP — Video to Motion Photo</title>
+<meta name="description" content="Convert MP4 videos into Google Motion Photo JPEGs, entirely in your browser. Nothing is uploaded.">
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1d212c;
+    --border: #2a2f3d;
+    --text: #e7e9ee;
+    --text-dim: #9aa1b2;
+    --accent: #5b8cff;
+    --accent-dim: #2f4680;
+    --good: #4ade80;
+    --bad: #f87171;
+    --radius: 10px;
+    --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+
+  body { padding-bottom: 4rem; }
+
+  a { color: var(--accent); }
+
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+  }
+
+  header.top {
+    padding: 2.5rem 0 1.5rem;
+    text-align: center;
+  }
+
+  header.top h1 {
+    font-size: 2rem;
+    margin: 0 0 0.35rem;
+    letter-spacing: -0.02em;
+  }
+
+  header.top p {
+    color: var(--text-dim);
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .badge-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.25rem 0.7rem;
+  }
+
+  section.card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  section.card h2 {
+    font-size: 1.05rem;
+    margin: 0 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  section.card h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 0.8rem;
+    flex: none;
+  }
+
+  .drop {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .drop:hover, .drop.dragover {
+    border-color: var(--accent);
+    background: rgba(91, 140, 255, 0.06);
+  }
+
+  .drop input[type="file"] { display: none; }
+
+  .drop .hint {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 0.35rem;
+  }
+
+  .file-list {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .file-row {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .file-row .name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+  }
+
+  .file-row .status {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    flex: none;
+  }
+
+  .file-row .status.ok { color: var(--good); }
+  .file-row .status.error { color: var(--bad); }
+
+  .file-row a.dl {
+    flex: none;
+    font-size: 0.85rem;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    margin: 1rem 0 0.75rem;
+  }
+
+  @media (max-width: 520px) {
+    .options-grid { grid-template-columns: 1fr; }
+  }
+
+  .opt-choice {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  .opt-choice.active {
+    border-color: var(--accent);
+    background: rgba(91, 140, 255, 0.08);
+  }
+
+  .opt-choice input[type="radio"] { margin-right: 0.4rem; }
+
+  .opt-sub {
+    margin-top: 0.6rem;
+  }
+
+  .opt-sub input[type="number"], .opt-sub input[type="text"] {
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+
+  label.checkline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    margin: 0.6rem 0;
+    cursor: pointer;
+  }
+
+  details.advanced {
+    margin-top: 0.9rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem;
+  }
+
+  details.advanced summary {
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    user-select: none;
+  }
+
+  .adv-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 0.9rem;
+  }
+
+  @media (max-width: 520px) {
+    .adv-grid { grid-template-columns: 1fr; }
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.3rem;
+  }
+
+  .field input[type="text"], .field input[type="number"] {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 0.65rem 1.1rem;
+    font-size: 0.9rem;
+    background: var(--panel-2);
+    color: var(--text);
+  }
+
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  button.primary:hover:not(:disabled) { background: #4a7bef; }
+
+  .progress-wrap {
+    margin-top: 1rem;
+    display: none;
+  }
+
+  .progress-wrap.show { display: block; }
+
+  .progress-label {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-bottom: 0.4rem;
+  }
+
+  .progress-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+
+  .progress-bar .fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.2s;
+  }
+
+  .preview-frame {
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .preview-frame img {
+    max-width: 100%;
+    max-height: 320px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .report {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem;
+    margin-top: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+
+  .check-ok::before { content: "✓ "; color: var(--good); }
+  .check-bad::before { content: "✗ "; color: var(--bad); }
+
+  footer.bottom {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    margin-top: 2rem;
+    padding: 0 1.25rem;
+  }
+
+  footer.bottom a { color: var(--text-dim); text-decoration: underline; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1>V2MP</h1>
+    <p>Turn a video into a Google Motion Photo — right here, in your browser.</p>
+    <div class="badge-row">
+      <span class="badge">No upload — runs on your device</span>
+      <span class="badge">Xiaomi Gallery / Google Photos compatible</span>
+    </div>
+  </header>
+
+  <!-- ============================= CONVERT ============================= -->
+  <section class="card">
+    <h2><span class="num">1</span> Convert a video</h2>
+
+    <div class="drop" id="dropZone" tabindex="0" role="button" aria-label="Choose video files">
+      <div>Drop video files here, or click to choose</div>
+      <div class="hint">MP4 works best. You can select more than one file.</div>
+      <input type="file" id="fileInput" accept="video/*" multiple>
+    </div>
+
+    <div class="file-list" id="fileList" aria-live="polite"></div>
+
+    <div class="options-grid" role="radiogroup" aria-label="Cover frame selection">
+      <label class="opt-choice active" data-choice="timestamp">
+        <input type="radio" name="coverMode" value="timestamp" checked> By timestamp
+      </label>
+      <label class="opt-choice" data-choice="frame">
+        <input type="radio" name="coverMode" value="frame"> By frame number
+      </label>
+      <label class="opt-choice" data-choice="auto">
+        <input type="radio" name="coverMode" value="auto"> Auto-pick best
+      </label>
+    </div>
+
+    <div class="opt-sub" id="coverModeSub">
+      <input type="text" id="coverTimestamp" value="0.0" placeholder="seconds, e.g. 2.5">
+    </div>
+
+    <label class="checkline">
+      <input type="checkbox" id="keepAudio" checked>
+      Keep audio in the embedded video
+    </label>
+
+    <details class="advanced">
+      <summary>Advanced options</summary>
+      <div class="adv-grid">
+        <label class="checkline">
+          <input type="checkbox" id="enableXiaomi" checked>
+          Embed Xiaomi compatibility tag
+        </label>
+        <label class="checkline">
+          <input type="checkbox" id="embedIcc" checked>
+          Embed color profile (ICC)
+        </label>
+        <div class="field">
+          <label for="trimStart">Trim start (seconds, optional)</label>
+          <input type="text" id="trimStart" placeholder="e.g. 0">
+        </div>
+        <div class="field">
+          <label for="trimEnd">Trim end (seconds, optional)</label>
+          <input type="text" id="trimEnd" placeholder="e.g. 3">
+        </div>
+      </div>
+    </details>
+
+    <div class="actions">
+      <button class="primary" id="convertBtn">Convert</button>
+      <button id="previewBtn">Preview cover frame</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label" id="progressLabel">Working…</div>
+      <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="preview-frame" id="previewFrame" style="display:none">
+      <img id="previewImg" alt="Cover frame preview">
+    </div>
+  </section>
+
+  <!-- ============================= TOOLS ============================= -->
+  <section class="card">
+    <h2><span class="num">2</span> Extract the video back out</h2>
+    <p style="color:var(--text-dim); font-size:0.85rem; margin-top:-0.5rem;">
+      Pull the original embedded video out of a Motion Photo you already have.
+    </p>
+    <div class="drop" id="extractDrop" tabindex="0" role="button" aria-label="Choose a motion photo file">
+      <div>Drop a Motion Photo (.jpg) here, or click to choose</div>
+      <input type="file" id="extractInput" accept="image/jpeg,.jpg,.jpeg">
+    </div>
+    <div class="file-list" id="extractResult" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">3</span> Inspect a file</h2>
+    <p style="color:var(--text-dim); font-size:0.85rem; margin-top:-0.5rem;">
+      See the JPEG segment structure and run the validation checks on any file.
+    </p>
+    <div class="drop" id="inspectDrop" tabindex="0" role="button" aria-label="Choose a file to inspect">
+      <div>Drop a .jpg here, or click to choose</div>
+      <input type="file" id="inspectInput" accept="image/jpeg,.jpg,.jpeg">
+    </div>
+    <div class="report" id="inspectReport" style="display:none"></div>
+  </section>
+
+  <footer class="bottom">
+    <p>
+      Everything above runs locally in your browser using
+      <a href="https://ffmpegwasm.netlify.app/" target="_blank" rel="noopener">ffmpeg.wasm</a>.
+      No file is ever uploaded anywhere.
+    </p>
+    <p><a href="https://github.com/fau-1o/V2MP" target="_blank" rel="noopener">V2MP on GitHub</a> · MIT License</p>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script>
+"use strict";
+// ============================================================================
+// Constants (mirrors v2mp/config.py)
+// ============================================================================
+
+const JPEG_SOI = new Uint8Array([0xff, 0xd8]);
+const JPEG_EOI = new Uint8Array([0xff, 0xd9]);
+const JPEG_APP0 = 0xe0;
+const JPEG_APP1 = 0xe1;
+const JPEG_APP2 = 0xe2;
+const JPEG_APP4 = 0xe4;
+const JPEG_SOS = 0xda;
+
+const EXIF_IDENTIFIER = strToBytes("Exif\x00\x00");
+const XMP_IDENTIFIER = strToBytes("http://ns.adobe.com/xap/1.0/\x00");
+const XIAOMI_IDENTIFIER = strToBytes("XIAOMI_CUSTOMIZE\x00");
+const XIAOMI_HEADER_VERSION_BYTES = new Uint8Array([0x01, 0x01]);
+
+const NS_GCAMERA = "http://ns.google.com/photos/1.0/camera/";
+const NS_CONTAINER = "http://ns.google.com/photos/1.0/container/";
+const NS_CONTAINER_ITEM = "http://ns.google.com/photos/1.0/container/item/";
+
+// Base64 of the exact sRGB ICC profile embedded by the v2mp CLI (generated
+// once via Pillow/LittleCMS, with the CMM-type fingerprint zeroed out to
+// match a genuine Xiaomi sample's "no CMM declared" header -- see
+// v2mp/metadata.py:_generate_srgb_icc_profile).
+const ICC_PROFILE_BASE64 =
+  "AAACTAAAAAAEQAAAbW50clJHQiBYWVogB+oABwAMAAUAOgALYWNzcEFQUEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1sY21zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALZGVzYwAAAQgAAAA2Y3BydAAAAUAAAABMd3RwdAAAAYwAAAAUY2hhZAAAAaAAAAAsclhZWgAAAcwAAAAUYlhZWgAAAeAAAAAUZ1hZWgAAAfQAAAAUclRSQwAAAggAAAAgZ1RSQwAAAggAAAAgYlRSQwAAAggAAAAgY2hybQAAAigAAAAkbWx1YwAAAAAAAAABAAAADGVuVVMAAAAaAAAAHABzAFIARwBCACAAYgB1AGkAbAB0AC0AaQBuAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAADAAAAAcAE4AbwAgAGMAbwBwAHkAcgBpAGcAaAB0ACwAIAB1AHMAZQAgAGYAcgBlAGUAbAB5WFlaIAAAAAAAAPbWAAEAAAAA0y1zZjMyAAAAAAABDEIAAAXe///zJQAAB5MAAP2Q///7of///aIAAAPcAADAblhZWiAAAAAAAABvoAAAOPUAAAOQWFlaIAAAAAAAACSfAAAPhAAAtsNYWVogAAAAAAAAYpcAALeHAAAY2XBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbY2hybQAAAAAAAwAAAACj1wAAVHsAAEzNAACZmgAAJmYAAA9c";
+
+// ============================================================================
+// Small helpers
+// ============================================================================
+
+function strToBytes(str) {
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+  return bytes;
+}
+
+function concatBytes(chunks) {
+  let total = 0;
+  for (const c of chunks) total += c.length;
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.length;
+  }
+  return out;
+}
+
+function u16be(value) {
+  return new Uint8Array([(value >> 8) & 0xff, value & 0xff]);
+}
+
+function u32be(value) {
+  return new Uint8Array([
+    (value >>> 24) & 0xff,
+    (value >>> 16) & 0xff,
+    (value >>> 8) & 0xff,
+    value & 0xff,
+  ]);
+}
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+// ============================================================================
+// jpeg.js -- JPEG marker parsing / splicing (mirrors v2mp/jpeg.py)
+// ============================================================================
+
+class JpegFormatError extends Error {}
+
+function validateSoi(data) {
+  if (data.length < 2 || data[0] !== 0xff || data[1] !== 0xd8) {
+    throw new JpegFormatError("Data does not start with a valid JPEG SOI marker (FFD8)");
+  }
+}
+
+function findEoiIndex(data) {
+  const length = data.length;
+  let pos = 2;
+
+  while (true) {
+    if (pos + 1 >= length) throw new JpegFormatError("Reached end of data while parsing JPEG markers");
+    if (data[pos] !== 0xff) {
+      throw new JpegFormatError(`Expected JPEG marker (0xFF) at offset ${pos}, found 0x${data[pos].toString(16)}`);
+    }
+    const marker = data[pos + 1];
+
+    if (marker === 0xd9) return pos;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      pos += 2;
+      continue;
+    }
+    if (pos + 4 > length) throw new JpegFormatError("Truncated JPEG segment length field");
+    const segLen = (data[pos + 2] << 8) | data[pos + 3];
+    if (segLen < 2) throw new JpegFormatError(`Invalid JPEG segment length ${segLen} at offset ${pos}`);
+
+    if (marker === JPEG_SOS) {
+      return findEoiAfterScan(data, pos + 2 + segLen);
+    }
+    pos = pos + 2 + segLen;
+  }
+}
+
+function findEoiAfterScan(data, scanStart) {
+  const length = data.length;
+  let i = scanStart;
+  while (i < length - 1) {
+    if (data[i] === 0xff) {
+      const nxt = data[i + 1];
+      if (nxt === 0x00) { i += 2; continue; }
+      if (nxt >= 0xd0 && nxt <= 0xd7) { i += 2; continue; }
+      if (nxt === 0xff) { i += 1; continue; }
+      if (nxt === 0xd9) return i;
+      i += 1;
+      continue;
+    }
+    i += 1;
+  }
+  throw new JpegFormatError("No JPEG EOI marker (FFD9) found after scan data");
+}
+
+function stripSoi(jpegBytes) {
+  validateSoi(jpegBytes);
+  const eoiIndex = findEoiIndex(jpegBytes);
+  return jpegBytes.slice(2, eoiIndex + 2);
+}
+
+function ensureApp0Present(body, jfifSegment) {
+  if (body.length >= 2 && body[0] === 0xff && body[1] === 0xe0) return body;
+  return concatBytes([jfifSegment, body]);
+}
+
+function insertAfterApp0(body, newSegments) {
+  let insertionPoint = 0;
+  if (body.length >= 4 && body[0] === 0xff && body[1] === 0xe0) {
+    const segLen = (body[2] << 8) | body[3];
+    insertionPoint = 2 + segLen;
+  }
+  return concatBytes([body.slice(0, insertionPoint), concatBytes(newSegments), body.slice(insertionPoint)]);
+}
+
+function assembleMotionPhoto(coverJpegBytes, videoBytes, headerSegments, postApp0Segments, ensureApp0Segment) {
+  let body = stripSoi(coverJpegBytes);
+  if (ensureApp0Segment) body = ensureApp0Present(body, ensureApp0Segment);
+  if (postApp0Segments && postApp0Segments.length) body = insertAfterApp0(body, postApp0Segments);
+  const header = concatBytes(headerSegments);
+  return concatBytes([JPEG_SOI, header, body, videoBytes]);
+}
+
+function splitMotionPhoto(data) {
+  validateSoi(data);
+  const eoiIndex = findEoiIndex(data);
+  const jpegEnd = eoiIndex + 2;
+  return [data.slice(0, jpegEnd), data.slice(jpegEnd)];
+}
+
+const MARKER_NAMES = {
+  0xd8: "SOI", 0xd9: "EOI", 0xda: "SOS", 0xdb: "DQT", 0xc4: "DHT",
+  0xc0: "SOF0", 0xc1: "SOF1", 0xc2: "SOF2", 0xc3: "SOF3", 0xfe: "COM", 0x01: "TEM",
+};
+for (let i = 0; i < 8; i++) MARKER_NAMES[0xd0 + i] = `RST${i}`;
+for (let i = 0; i < 16; i++) MARKER_NAMES[0xe0 + i] = `APP${i}`;
+
+function iterMarkers(data) {
+  validateSoi(data);
+  const markers = [{ marker: "SOI", offset: 0, length: 2 }];
+  const length = data.length;
+  let pos = 2;
+
+  while (true) {
+    if (pos + 1 >= length) throw new JpegFormatError("Reached end of data while parsing JPEG markers");
+    if (data[pos] !== 0xff) throw new JpegFormatError(`Expected JPEG marker at offset ${pos}`);
+    const markerByte = data[pos + 1];
+    const name = MARKER_NAMES[markerByte] || `0x${markerByte.toString(16).toUpperCase()}`;
+
+    if (markerByte === 0xd9) {
+      markers.push({ marker: name, offset: pos, length: 2 });
+      return markers;
+    }
+    if (markerByte === 0x01 || (markerByte >= 0xd0 && markerByte <= 0xd7)) {
+      markers.push({ marker: name, offset: pos, length: 2 });
+      pos += 2;
+      continue;
+    }
+    if (pos + 4 > length) throw new JpegFormatError("Truncated JPEG segment length field");
+    const segLen = (data[pos + 2] << 8) | data[pos + 3];
+    if (segLen < 2) throw new JpegFormatError(`Invalid JPEG segment length ${segLen}`);
+    markers.push({ marker: name, offset: pos, length: 2 + segLen });
+
+    if (markerByte === JPEG_SOS) {
+      const eoiIndex = findEoiAfterScan(data, pos + 2 + segLen);
+      markers.push({ marker: "EOI", offset: eoiIndex, length: 2 });
+      return markers;
+    }
+    pos = pos + 2 + segLen;
+  }
+}
+
+// ============================================================================
+// metadata.js -- Exif / Xiaomi APP4 / ICC / JFIF segment builders
+// (mirrors v2mp/metadata.py)
+// ============================================================================
+
+function buildAppSegment(markerByte, payload) {
+  const length = payload.length + 2;
+  if (length > 0xffff) throw new Error(`Segment payload too large (${payload.length} bytes)`);
+  return concatBytes([new Uint8Array([0xff, markerByte]), u16be(length), payload]);
+}
+
+// -- Exif (hand-rolled minimal TIFF writer, byte-identical to the patched
+//    piexif output the CLI produces: IFD0 = {ImageWidth, ImageLength} as
+//    SHORT (type 3), optional Orientation; Exif SubIFD = {0x8897=1,
+//    LightSource=0, 0x9A01=1} as SHORT, in ascending tag order.) --
+
+function tiffShortEntry(tag, value) {
+  // tag(2) type(2)=3 count(4)=1 value(2)+pad(2)
+  return concatBytes([u16be(tag), u16be(3), u32be(1), u16be(value), u16be(0)]);
+}
+
+function tiffLongEntry(tag, value) {
+  // tag(2) type(2)=4 count(4)=1 value(4)
+  return concatBytes([u16be(tag), u16be(4), u32be(1), u32be(value)]);
+}
+
+function buildExifSegment({ orientation = null, imageWidth = null, imageHeight = null } = {}) {
+  if (orientation !== null && (orientation < 1 || orientation > 8)) {
+    throw new Error("EXIF orientation must be between 1 and 8");
+  }
+
+  const zerothEntries = [];
+  if (imageWidth !== null) zerothEntries.push({ tag: 0x0100, bytes: tiffShortEntry(0x0100, imageWidth) });
+  if (imageHeight !== null) zerothEntries.push({ tag: 0x0101, bytes: tiffShortEntry(0x0101, imageHeight) });
+  if (orientation !== null) zerothEntries.push({ tag: 0x0112, bytes: tiffShortEntry(0x0112, orientation) });
+  zerothEntries.sort((a, b) => a.tag - b.tag);
+
+  // Exif SubIFD: 0x8897=1, LightSource(0x9208)=0, 0x9A01=1 (ascending order)
+  const exifEntries = [
+    { tag: 0x8897, bytes: tiffShortEntry(0x8897, 1) },
+    { tag: 0x9208, bytes: tiffShortEntry(0x9208, 0) },
+    { tag: 0x9a01, bytes: tiffShortEntry(0x9a01, 1) },
+  ].sort((a, b) => a.tag - b.tag);
+
+  // IFD0 also needs an ExifIFDPointer (0x8769) entry -- ascending order
+  // means it goes wherever it numerically falls (after Orientation, before
+  // nothing else here since 0x8769 > all other IFD0 tags used).
+  const headerLen = 8; // byte-order(2) + magic(2) + ifd0-offset(4)
+  const ifd0Offset = headerLen;
+  const ifd0EntryCount = zerothEntries.length + 1; // +1 for ExifIFDPointer
+  const ifd0Len = 2 + ifd0EntryCount * 12 + 4;
+  const exifSubIfdOffset = ifd0Offset + ifd0Len;
+
+  const ifd0AllEntries = [...zerothEntries, { tag: 0x8769, bytes: null }].sort((a, b) => a.tag - b.tag);
+
+  const ifd0Bytes = [];
+  ifd0Bytes.push(u16be(ifd0EntryCount));
+  for (const entry of ifd0AllEntries) {
+    if (entry.tag === 0x8769) {
+      ifd0Bytes.push(tiffLongEntry(0x8769, exifSubIfdOffset));
+    } else {
+      ifd0Bytes.push(entry.bytes);
+    }
+  }
+  ifd0Bytes.push(u32be(0)); // next IFD offset
+
+  const exifSubIfdBytes = [];
+  exifSubIfdBytes.push(u16be(exifEntries.length));
+  for (const entry of exifEntries) exifSubIfdBytes.push(entry.bytes);
+  // NOTE: no trailing 4-byte "next IFD offset" here -- confirmed via
+  // byte-for-byte comparison against genuine Xiaomi samples (and matches
+  // piexif's own output) that the Exif SubIFD is not terminated with one,
+  // unlike IFD0 which does have a (zero) next-offset field.
+
+  const tiff = concatBytes([
+    strToBytes("MM"),
+    u16be(0x002a),
+    u32be(ifd0Offset),
+    ...ifd0Bytes,
+    ...exifSubIfdBytes,
+  ]);
+
+  const exifPayload = concatBytes([EXIF_IDENTIFIER, tiff]);
+  return buildAppSegment(JPEG_APP1, exifPayload);
+}
+
+function buildXmpSegmentRaw(xmpPacketBytes) {
+  const payload = concatBytes([XMP_IDENTIFIER, xmpPacketBytes]);
+  return buildAppSegment(JPEG_APP1, payload);
+}
+
+function jsonStringifyOrdered(pairs) {
+  // JS engines enumerate integer-like string keys ("8897") in ascending
+  // numeric order BEFORE any other string keys, regardless of insertion
+  // order -- so a plain object literal would silently reorder
+  // {"9a01":..., "8897":...} to {"8897":..., "9a01":...} since "8897" is
+  // purely numeric but "9a01" is not. Building the JSON string directly
+  // from an explicit ordered list of [key, value] pairs sidesteps that
+  // entirely and guarantees the exact byte order confirmed against a
+  // genuine sample.
+  const parts = pairs.map(([k, v]) => `${JSON.stringify(k)}:${JSON.stringify(v)}`);
+  return `{${parts.join(",")}}`;
+}
+
+const DEFAULT_XIAOMI_PAYLOAD_PAIRS = [
+  ["9a01", "1"],
+  ["8897", "1"],
+  ["version", "32"],
+];
+
+function buildXiaomiSegment(payloadPairs = null) {
+  const pairs = payloadPairs || DEFAULT_XIAOMI_PAYLOAD_PAIRS;
+  const jsonBytes = strToBytes(jsonStringifyOrdered(pairs));
+  const fullPayload = concatBytes([XIAOMI_IDENTIFIER, XIAOMI_HEADER_VERSION_BYTES, jsonBytes]);
+  return buildAppSegment(JPEG_APP4, fullPayload);
+}
+
+const JFIF_PAYLOAD = new Uint8Array([
+  0x4a, 0x46, 0x49, 0x46, 0x00, // "JFIF\0"
+  0x01, 0x01, // version 1.01
+  0x00, // units
+  0x00, 0x01, // Xdensity
+  0x00, 0x01, // Ydensity
+  0x00, 0x00, // thumbnail w/h
+]);
+
+function buildJfifSegment() {
+  return buildAppSegment(JPEG_APP0, JFIF_PAYLOAD);
+}
+
+const ICC_IDENTIFIER = strToBytes("ICC_PROFILE\x00");
+
+function buildIccProfileSegment(iccBytes = null) {
+  const data = iccBytes || base64ToBytes(ICC_PROFILE_BASE64);
+  const payload = concatBytes([ICC_IDENTIFIER, new Uint8Array([1, 1]), data]);
+  return [buildAppSegment(JPEG_APP2, payload)];
+}
+
+// ============================================================================
+// xmp.js -- literal template, byte-identical to v2mp/xmp.py's _XMP_TEMPLATE
+// ============================================================================
+
+const XMP_TEMPLATE_PARTS = [
+  '<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.1.0-jc003">\n',
+  '  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\n',
+  '    <rdf:Description rdf:about=""\n',
+  '        xmlns:GCamera="http://ns.google.com/photos/1.0/camera/"\n',
+  '        xmlns:Container="http://ns.google.com/photos/1.0/container/"\n',
+  '        xmlns:Item="http://ns.google.com/photos/1.0/container/item/"\n',
+  '      GCamera:MotionPhoto="1"\n',
+  '      GCamera:MotionPhotoVersion="1"\n',
+  '      GCamera:MotionPhotoPresentationTimestampUs="{timestamp_us}">\n',
+  "      <Container:Directory>\n",
+  "        <rdf:Seq>\n",
+  '          <rdf:li rdf:parseType="Resource">\n',
+  "            <Container:Item\n",
+  '              Item:Mime="image/jpeg"\n',
+  '              Item:Semantic="Primary"/>\n',
+  "          </rdf:li>\n",
+  '          <rdf:li rdf:parseType="Resource">\n',
+  "            <Container:Item\n",
+  '              Item:Mime="video/mp4"\n',
+  '              Item:Semantic="MotionPhoto"\n',
+  '              Item:Length="{video_length}"\n',
+  '              Item:Padding="0"/>\n',
+  "          </rdf:li>\n",
+  "        </rdf:Seq>\n",
+  "      </Container:Directory>\n",
+  "    </rdf:Description>\n",
+  "  </rdf:RDF>\n",
+  "</x:xmpmeta>",
+].join("");
+
+function buildMotionPhotoXmp(videoLengthBytes, presentationTimestampUs = 0) {
+  if (videoLengthBytes <= 0) throw new Error("videoLengthBytes must be a positive integer");
+  const text = XMP_TEMPLATE_PARTS
+    .replace("{timestamp_us}", String(Math.trunc(presentationTimestampUs)))
+    .replace("{video_length}", String(Math.trunc(videoLengthBytes)));
+  return strToBytes(text);
+}
+
+// ============================================================================
+// validator.js -- lightweight validation (mirrors v2mp/validator.py)
+// ============================================================================
+
+function extractXmpBytes(jpegBytes) {
+  let pos = 2;
+  const length = jpegBytes.length;
+  while (pos + 4 <= length) {
+    if (jpegBytes[pos] !== 0xff) break;
+    const marker = jpegBytes[pos + 1];
+    if (marker === JPEG_SOS || marker === 0xd9) break;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { pos += 2; continue; }
+    const segLen = (jpegBytes[pos + 2] << 8) | jpegBytes[pos + 3];
+    const segStart = pos + 4;
+    const segEnd = pos + 2 + segLen;
+    if (marker === 0xe1) {
+      const payload = jpegBytes.slice(segStart, segEnd);
+      if (payload.length >= XMP_IDENTIFIER.length) {
+        let matches = true;
+        for (let k = 0; k < XMP_IDENTIFIER.length; k++) {
+          if (payload[k] !== XMP_IDENTIFIER[k]) { matches = false; break; }
+        }
+        if (matches) return payload.slice(XMP_IDENTIFIER.length);
+      }
+    }
+    pos = segEnd;
+  }
+  return null;
+}
+
+function xmpHasMotionPhotoFlag(xmpBytes) {
+  const text = bytesToLatin1String(xmpBytes);
+  return /GCamera:MotionPhoto="1"/.test(text);
+}
+
+function xmpHasRequiredNamespaces(xmpBytes) {
+  const text = bytesToLatin1String(xmpBytes);
+  return text.includes(NS_GCAMERA) && text.includes(NS_CONTAINER) && text.includes(NS_CONTAINER_ITEM);
+}
+
+function xmpHasContainerItemElement(xmpBytes) {
+  const text = bytesToLatin1String(xmpBytes);
+  const correct = (text.match(/<Container:Item\b/g) || []).length;
+  const incorrect = (text.match(/<Item:Item\b/g) || []).length;
+  return correct >= 2 && incorrect === 0;
+}
+
+function xmpVideoLength(xmpBytes) {
+  const text = bytesToLatin1String(xmpBytes);
+  const match = text.match(/Item:Length="(\d+)"/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function bytesToLatin1String(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return s;
+}
+
+function validateMotionPhoto(data) {
+  const checks = {};
+  const messages = {};
+  const add = (name, passed, message = "") => {
+    checks[name] = passed;
+    messages[name] = message;
+  };
+
+  try {
+    validateSoi(data);
+    add("jpeg_starts_with_soi", true);
+  } catch (e) {
+    add("jpeg_starts_with_soi", false, e.message);
+    return { checks, messages, isValid: false };
+  }
+
+  let eoiIndex;
+  try {
+    eoiIndex = findEoiIndex(data);
+    add("jpeg_contains_eoi", true);
+  } catch (e) {
+    add("jpeg_contains_eoi", false, e.message);
+    return { checks, messages, isValid: false };
+  }
+
+  const jpegEnd = eoiIndex + 2;
+  const jpegBytes = data.slice(0, jpegEnd);
+  const mp4Bytes = data.slice(jpegEnd);
+
+  add("output_size_matches_components", jpegBytes.length + mp4Bytes.length === data.length);
+
+  const mp4Present = mp4Bytes.length > 0;
+  add("mp4_payload_present", mp4Present, mp4Present ? "" : "No trailing MP4 data found");
+
+  if (mp4Present) {
+    const ftypOk =
+      mp4Bytes.length >= 8 &&
+      mp4Bytes[4] === 0x66 && mp4Bytes[5] === 0x74 && mp4Bytes[6] === 0x79 && mp4Bytes[7] === 0x70;
+    add("mp4_starts_with_ftyp", ftypOk, ftypOk ? "" : "Expected 'ftyp' box at offset 4");
+  }
+
+  const xmpBytes = extractXmpBytes(jpegBytes);
+  const xmpPresent = xmpBytes !== null;
+  add("xmp_segment_present", xmpPresent, xmpPresent ? "" : "No XMP APP1 segment found");
+
+  if (xmpPresent) {
+    add("xmp_namespaces_correct", xmpHasRequiredNamespaces(xmpBytes));
+    add("motion_photo_flag_set", xmpHasMotionPhotoFlag(xmpBytes));
+    add("container_item_structure_correct", xmpHasContainerItemElement(xmpBytes));
+    if (mp4Present) {
+      const declared = xmpVideoLength(xmpBytes);
+      const matches = declared === mp4Bytes.length;
+      add(
+        "video_length_field_matches",
+        matches,
+        matches ? "" : `XMP declares ${declared}, actual is ${mp4Bytes.length} bytes`
+      );
+    }
+  }
+
+  const isValid = Object.values(checks).every(Boolean);
+  return { checks, messages, isValid };
+}
+
+
+
+// =====================================================================
+// ffmpeg wrapper (mirrors v2mp/ffmpeg.py) -- all processing happens
+// locally via WebAssembly; nothing is ever sent to a server.
+// =====================================================================
+
+const FFMPEG_CORE_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
+
+let ffmpegInstance = null;
+let ffmpegLoadPromise = null;
+
+async function blobUrlFor(url, mimeType) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
+  const buf = await resp.arrayBuffer();
+  return URL.createObjectURL(new Blob([buf], { type: mimeType }));
+}
+
+async function getFfmpeg(onStatus) {
+  if (ffmpegInstance) return ffmpegInstance;
+  if (ffmpegLoadPromise) return ffmpegLoadPromise;
+
+  ffmpegLoadPromise = (async () => {
+    if (typeof FFmpegWASM === "undefined") {
+      throw new Error("ffmpeg.wasm failed to load from the CDN. Check your internet connection and try again.");
+    }
+    const { FFmpeg } = FFmpegWASM;
+    const ffmpeg = new FFmpeg();
+    ffmpeg.on("log", ({ message }) => {
+      if (onStatus) onStatus(message);
+    });
+
+    const coreURL = await blobUrlFor(`${FFMPEG_CORE_BASE}/ffmpeg-core.js`, "text/javascript");
+    const wasmURL = await blobUrlFor(`${FFMPEG_CORE_BASE}/ffmpeg-core.wasm`, "application/wasm");
+    await ffmpeg.load({ coreURL, wasmURL });
+
+    ffmpegInstance = ffmpeg;
+    return ffmpeg;
+  })();
+
+  return ffmpegLoadPromise;
+}
+
+/**
+ * Extract a single still frame as a JPEG cover image.
+ * Mirrors ffmpeg.py:extract_cover_frame -- same three selection modes,
+ * same -bitexact flag to avoid a stray COM marker.
+ */
+async function extractCoverFrame(ffmpeg, videoBytes, { timestamp, frameIndex, auto }) {
+  const inName = "cover_in_" + Math.random().toString(36).slice(2) + ".mp4";
+  const outName = "cover_out_" + Math.random().toString(36).slice(2) + ".jpg";
+  await ffmpeg.writeFile(inName, videoBytes);
+
+  const args = ["-y"];
+  if (auto) {
+    args.push("-i", inName, "-vf", "thumbnail=30", "-frames:v", "1");
+  } else if (frameIndex !== null && frameIndex !== undefined) {
+    args.push("-i", inName, "-vf", `select=eq(n\\,${frameIndex})`, "-vsync", "vfr", "-frames:v", "1");
+  } else {
+    args.push("-ss", String(timestamp ?? "0.0"), "-i", inName, "-frames:v", "1");
+  }
+  args.push("-q:v", "2", "-bitexact", outName);
+
+  await ffmpeg.exec(args);
+
+  let data;
+  try {
+    data = await ffmpeg.readFile(outName);
+  } catch (e) {
+    throw new Error(
+      "Could not extract a cover frame. If you set an exact frame number, it may be beyond the video's length."
+    );
+  }
+  await safeDelete(ffmpeg, inName);
+  await safeDelete(ffmpeg, outName);
+  return new Uint8Array(data);
+}
+
+/** Trim a video. Mirrors ffmpeg.py:trim_video (stream copy, no re-encode). */
+async function trimVideo(ffmpeg, videoBytes, start, end) {
+  const inName = "trim_in_" + Math.random().toString(36).slice(2) + ".mp4";
+  const outName = "trim_out_" + Math.random().toString(36).slice(2) + ".mp4";
+  await ffmpeg.writeFile(inName, videoBytes);
+
+  const args = ["-y"];
+  if (start !== null && start !== undefined && start !== "") args.push("-ss", String(start));
+  args.push("-i", inName);
+  if (end !== null && end !== undefined && end !== "") args.push("-to", String(end));
+  args.push("-c", "copy", outName);
+
+  await ffmpeg.exec(args);
+  const data = await ffmpeg.readFile(outName);
+  await safeDelete(ffmpeg, inName);
+  await safeDelete(ffmpeg, outName);
+  return new Uint8Array(data);
+}
+
+/** Strip audio via remux. Mirrors ffmpeg.py:remux_strip_audio. */
+async function stripAudio(ffmpeg, videoBytes) {
+  const inName = "noaudio_in_" + Math.random().toString(36).slice(2) + ".mp4";
+  const outName = "noaudio_out_" + Math.random().toString(36).slice(2) + ".mp4";
+  await ffmpeg.writeFile(inName, videoBytes);
+  await ffmpeg.exec(["-y", "-i", inName, "-c:v", "copy", "-an", outName]);
+  const data = await ffmpeg.readFile(outName);
+  await safeDelete(ffmpeg, inName);
+  await safeDelete(ffmpeg, outName);
+  return new Uint8Array(data);
+}
+
+async function safeDelete(ffmpeg, name) {
+  try {
+    await ffmpeg.deleteFile(name);
+  } catch (e) {
+    /* best-effort cleanup only */
+  }
+}
+
+/** Read a JPEG's pixel dimensions (no ffmpeg needed -- the browser can decode it). */
+async function readJpegDimensions(jpegBytes) {
+  const blob = new Blob([jpegBytes], { type: "image/jpeg" });
+  const bitmap = await createImageBitmap(blob);
+  const dims = { width: bitmap.width, height: bitmap.height };
+  bitmap.close();
+  return dims;
+}
+
+// =====================================================================
+// Orchestration (mirrors v2mp/converter.py:convert_video_to_motion_photo)
+// =====================================================================
+
+async function convertVideoToMotionPhoto(file, options, onStatus) {
+  onStatus("Loading ffmpeg (first time only, ~30MB)…");
+  const ffmpeg = await getFfmpeg();
+
+  let videoBytes = new Uint8Array(await file.arrayBuffer());
+
+  if (options.trimStart || options.trimEnd) {
+    onStatus("Trimming video…");
+    videoBytes = await trimVideo(ffmpeg, videoBytes, options.trimStart, options.trimEnd);
+  }
+
+  if (options.stripAudio) {
+    onStatus("Removing audio…");
+    videoBytes = await stripAudio(ffmpeg, videoBytes);
+  }
+
+  onStatus("Extracting cover frame…");
+  const coverBytes = await extractCoverFrame(ffmpeg, videoBytes, options);
+
+  onStatus("Building metadata…");
+  const dims = await readJpegDimensions(coverBytes);
+
+  const headerSegments = [buildExifSegment({ imageWidth: dims.width, imageHeight: dims.height })];
+  if (options.enableXiaomi) headerSegments.push(buildXiaomiSegment());
+  const xmpPacket = buildMotionPhotoXmp(videoBytes.length);
+  headerSegments.push(buildXmpSegmentRaw(xmpPacket));
+
+  const postApp0Segments = options.embedIcc ? buildIccProfileSegment() : [];
+  const jfifSegment = buildJfifSegment();
+
+  onStatus("Assembling motion photo…");
+  const assembled = assembleMotionPhoto(coverBytes, videoBytes, headerSegments, postApp0Segments, jfifSegment);
+
+  const validation = validateMotionPhoto(assembled);
+  if (!validation.isValid) {
+    const failed = Object.entries(validation.checks)
+      .filter(([, ok]) => !ok)
+      .map(([name]) => name)
+      .join(", ");
+    throw new Error(`Generated file failed validation: ${failed}`);
+  }
+
+  return { bytes: assembled, coverBytes, dims, validation };
+}
+
+// =====================================================================
+// UI wiring
+// =====================================================================
+
+(function () {
+  "use strict";
+
+  // ---- Cover mode selector ----
+  const coverModeSub = document.getElementById("coverModeSub");
+  const coverChoices = document.querySelectorAll('.opt-choice[data-choice]');
+
+  function renderCoverModeSub(mode) {
+    if (mode === "timestamp") {
+      coverModeSub.innerHTML =
+        '<input type="text" id="coverTimestamp" value="0.0" placeholder="seconds, e.g. 2.5">';
+    } else if (mode === "frame") {
+      coverModeSub.innerHTML =
+        '<input type="number" id="coverFrame" min="0" step="1" value="0" placeholder="frame number, e.g. 42">';
+    } else {
+      coverModeSub.innerHTML =
+        '<div style="color:var(--text-dim); font-size:0.85rem;">Scans the first few seconds and picks a clear, representative frame.</div>';
+    }
+  }
+
+  coverChoices.forEach((choice) => {
+    choice.addEventListener("click", () => {
+      coverChoices.forEach((c) => c.classList.remove("active"));
+      choice.classList.add("active");
+      choice.querySelector('input[type="radio"]').checked = true;
+      renderCoverModeSub(choice.dataset.choice);
+    });
+  });
+
+  function getCoverOptions() {
+    const mode = document.querySelector('input[name="coverMode"]:checked').value;
+    const opts = { timestamp: "0.0", frameIndex: null, auto: false };
+    if (mode === "timestamp") {
+      opts.timestamp = document.getElementById("coverTimestamp").value || "0.0";
+    } else if (mode === "frame") {
+      const v = document.getElementById("coverFrame").value;
+      opts.frameIndex = v === "" ? 0 : parseInt(v, 10);
+    } else {
+      opts.auto = true;
+    }
+    return opts;
+  }
+
+  function getAllOptions() {
+    return {
+      ...getCoverOptions(),
+      stripAudio: !document.getElementById("keepAudio").checked,
+      enableXiaomi: document.getElementById("enableXiaomi").checked,
+      embedIcc: document.getElementById("embedIcc").checked,
+      trimStart: document.getElementById("trimStart").value.trim(),
+      trimEnd: document.getElementById("trimEnd").value.trim(),
+    };
+  }
+
+  // ---- Generic drag & drop wiring ----
+  function wireDropZone(dropEl, inputEl, onFiles) {
+    dropEl.addEventListener("click", () => inputEl.click());
+    dropEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        inputEl.click();
+      }
+    });
+    inputEl.addEventListener("change", () => {
+      if (inputEl.files.length) onFiles(Array.from(inputEl.files));
+    });
+    ["dragenter", "dragover"].forEach((evt) =>
+      dropEl.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropEl.classList.add("dragover");
+      })
+    );
+    ["dragleave", "drop"].forEach((evt) =>
+      dropEl.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropEl.classList.remove("dragover");
+      })
+    );
+    dropEl.addEventListener("drop", (e) => {
+      const files = Array.from(e.dataTransfer.files || []);
+      if (files.length) onFiles(files);
+    });
+  }
+
+  // ---- Main convert flow ----
+  const fileListEl = document.getElementById("fileList");
+  const progressWrap = document.getElementById("progressWrap");
+  const progressLabel = document.getElementById("progressLabel");
+  const progressFill = document.getElementById("progressFill");
+  const convertBtn = document.getElementById("convertBtn");
+  const previewBtn = document.getElementById("previewBtn");
+  const previewFrame = document.getElementById("previewFrame");
+  const previewImg = document.getElementById("previewImg");
+
+  let selectedFiles = [];
+
+  function renderFileList() {
+    fileListEl.innerHTML = "";
+    selectedFiles.forEach((entry, idx) => {
+      const row = document.createElement("div");
+      row.className = "file-row";
+      row.innerHTML = `
+        <span class="name">${escapeHtml(entry.file.name)}</span>
+        <span class="status" data-idx="${idx}">${entry.status}</span>
+      `;
+      if (entry.downloadUrl) {
+        const a = document.createElement("a");
+        a.className = "dl";
+        a.href = entry.downloadUrl;
+        a.download = entry.outputName;
+        a.textContent = "Download";
+        row.appendChild(a);
+      }
+      fileListEl.appendChild(row);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  wireDropZone(document.getElementById("dropZone"), document.getElementById("fileInput"), (files) => {
+    selectedFiles = files.map((file) => ({ file, status: "Ready", downloadUrl: null, outputName: null }));
+    renderFileList();
+    previewFrame.style.display = "none";
+  });
+
+  function setProgress(label, indeterminate) {
+    progressWrap.classList.add("show");
+    progressLabel.textContent = label;
+    progressFill.style.width = indeterminate ? "40%" : "0%";
+  }
+
+  function hideProgress() {
+    progressWrap.classList.remove("show");
+  }
+
+  previewBtn.addEventListener("click", async () => {
+    if (!selectedFiles.length) {
+      alert("Choose a video first.");
+      return;
+    }
+    previewBtn.disabled = true;
+    convertBtn.disabled = true;
+    try {
+      setProgress("Loading ffmpeg…", true);
+      const ffmpeg = await getFfmpeg();
+      const opts = getCoverOptions();
+      const videoBytes = new Uint8Array(await selectedFiles[0].file.arrayBuffer());
+      setProgress("Extracting frame…", true);
+      const coverBytes = await extractCoverFrame(ffmpeg, videoBytes, opts);
+      const blob = new Blob([coverBytes], { type: "image/jpeg" });
+      previewImg.src = URL.createObjectURL(blob);
+      previewFrame.style.display = "block";
+    } catch (err) {
+      alert("Couldn't preview that frame: " + err.message);
+    } finally {
+      hideProgress();
+      previewBtn.disabled = false;
+      convertBtn.disabled = false;
+    }
+  });
+
+  convertBtn.addEventListener("click", async () => {
+    if (!selectedFiles.length) {
+      alert("Choose a video first.");
+      return;
+    }
+    convertBtn.disabled = true;
+    previewBtn.disabled = true;
+
+    const options = getAllOptions();
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const entry = selectedFiles[i];
+      entry.status = "Working…";
+      renderFileList();
+      setProgress(`Converting ${entry.file.name}…`, true);
+      try {
+        const result = await convertVideoToMotionPhoto(entry.file, options, (msg) => {
+          progressLabel.textContent = msg;
+        });
+        const blob = new Blob([result.bytes], { type: "image/jpeg" });
+        entry.downloadUrl = URL.createObjectURL(blob);
+        entry.outputName = entry.file.name.replace(/\.[^.]+$/, "") + ".jpg";
+        entry.status = "Done";
+      } catch (err) {
+        entry.status = "Error: " + err.message;
+      }
+      renderFileList();
+    }
+
+    hideProgress();
+    convertBtn.disabled = false;
+    previewBtn.disabled = false;
+  });
+
+  // ---- Extract video tool ----
+  const extractResultEl = document.getElementById("extractResult");
+
+  wireDropZone(document.getElementById("extractDrop"), document.getElementById("extractInput"), async (files) => {
+    extractResultEl.innerHTML = "";
+    for (const file of files) {
+      const row = document.createElement("div");
+      row.className = "file-row";
+      row.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="status">Reading…</span>`;
+      extractResultEl.appendChild(row);
+
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const [, videoBytes] = splitMotionPhoto(bytes);
+        if (!videoBytes.length) {
+          row.querySelector(".status").textContent = "No video found in this file";
+          row.querySelector(".status").classList.add("error");
+          continue;
+        }
+        const blob = new Blob([videoBytes], { type: "video/mp4" });
+        const url = URL.createObjectURL(blob);
+        row.querySelector(".status").textContent = "Done";
+        row.querySelector(".status").classList.add("ok");
+        const a = document.createElement("a");
+        a.className = "dl";
+        a.href = url;
+        a.download = file.name.replace(/\.[^.]+$/, "") + ".mp4";
+        a.textContent = "Download video";
+        row.appendChild(a);
+      } catch (err) {
+        row.querySelector(".status").textContent = "Error: " + err.message;
+        row.querySelector(".status").classList.add("error");
+      }
+    }
+  });
+
+  // ---- Inspect tool ----
+  const inspectReportEl = document.getElementById("inspectReport");
+
+  wireDropZone(document.getElementById("inspectDrop"), document.getElementById("inspectInput"), async (files) => {
+    const file = files[0];
+    inspectReportEl.style.display = "block";
+    inspectReportEl.textContent = "Reading " + file.name + "…";
+
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const lines = [];
+      lines.push(`${file.name} (${(bytes.length / 1024).toFixed(1)} KB)`, "", "Marker segments:");
+
+      let markers;
+      try {
+        markers = iterMarkers(bytes);
+      } catch (e) {
+        lines.push("  <failed to parse markers: " + e.message + ">");
+        inspectReportEl.textContent = lines.join("\n");
+        return;
+      }
+      for (const m of markers) {
+        lines.push(`  ${m.marker.padEnd(6)} offset=${String(m.offset).padEnd(10)} length=${m.length}`);
+      }
+
+      try {
+        const [, trailing] = splitMotionPhoto(bytes);
+        lines.push("");
+        if (trailing.length) {
+          const preview = Array.from(trailing.slice(0, 12))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join(" ");
+          lines.push(`Trailing data after EOI: ${(trailing.length / 1024).toFixed(1)} KB`);
+          lines.push(`  first bytes: ${preview}`);
+        } else {
+          lines.push("Trailing data after EOI: none");
+        }
+      } catch (e) {
+        /* ignore */
+      }
+
+      lines.push("");
+      const result = validateMotionPhoto(bytes);
+      lines.push("Validation:");
+      for (const [name, ok] of Object.entries(result.checks)) {
+        const msg = result.messages[name] ? " — " + result.messages[name] : "";
+        lines.push(`  [${ok ? "class:check-ok" : "class:check-bad"}] ${name}${msg}`);
+      }
+      lines.push("");
+      lines.push("Overall: " + (result.isValid ? "VALID" : "INVALID"));
+
+      renderInspectReport(lines);
+    } catch (err) {
+      inspectReportEl.textContent = "Error: " + err.message;
+    }
+  });
+
+  function renderInspectReport(lines) {
+    inspectReportEl.innerHTML = "";
+    for (const line of lines) {
+      const div = document.createElement("div");
+      if (line.startsWith("  [class:check-ok]")) {
+        div.className = "check-ok";
+        div.textContent = line.replace("  [class:check-ok] ", "  ");
+      } else if (line.startsWith("  [class:check-bad]")) {
+        div.className = "check-bad";
+        div.textContent = line.replace("  [class:check-bad] ", "  ");
+      } else {
+        div.textContent = line || "\u00A0";
+      }
+      inspectReportEl.appendChild(div);
+    }
+  }
+})();
+
+</script>
+</body>
+</html>

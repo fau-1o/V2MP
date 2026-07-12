@@ -7,7 +7,29 @@ Android gallery apps.
 
 The output is just **one `.jpg` file**, no extra files.
 
-## Installation
+## 🌐 Try it in your browser — no install needed
+
+**[Open the web app](https://fau-1o.github.io/V2MP/)**
+
+Everything runs locally on your own device (powered by
+[ffmpeg.wasm](https://ffmpegwasm.netlify.app/)) — no video is ever
+uploaded anywhere. Works on both desktop and mobile.
+
+<details>
+<summary>How to turn on this link for your own copy of the repo</summary>
+
+1. Push this repo to GitHub.
+2. Go to **Settings → Pages**.
+3. Under "Build and deployment", set **Source** to "Deploy from a
+   branch", pick the **main** branch and the **/ (root)** folder, then
+   **Save**.
+4. After a minute, your page will be live at
+   `https://<your-username>.github.io/<repo-name>/`.
+5. Replace the link at the top of this README with that URL.
+
+</details>
+
+## Installation (command-line version)
 
 Requires Python 3.10+ and `ffmpeg` (make sure `ffmpeg -version` works in
 your terminal).
@@ -80,6 +102,18 @@ See all options with:
 ```bash
 python main.py --help
 ```
+
+## Web app feature parity
+
+The web app (`index.html`) mirrors the CLI:
+
+- Cover frame by timestamp, exact frame number, or auto-pick
+- Keep or strip audio
+- Trim before embedding
+- Toggle the Xiaomi compatibility tag / ICC color profile
+- Convert multiple files in one go
+- Extract the video back out of an existing Motion Photo
+- Inspect a file's structure and validation report
 
 ## Testing (optional)
 
