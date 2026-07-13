@@ -105,6 +105,11 @@ python main.py --help
 
 ## Web app feature parity
 
+The `vendor/` folder holds a couple of small files from the
+[ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) project itself
+(see `vendor/README.md` for why they need to live in this repo instead
+of being loaded from a CDN). You don't need to touch them.
+
 The web app (`index.html`) mirrors the CLI:
 
 - Cover frame by timestamp, exact frame number, or auto-pick
