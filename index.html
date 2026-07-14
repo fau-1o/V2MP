@@ -1009,6 +1009,20 @@ function validateMotionPhoto(data) {
 // locally via WebAssembly; nothing is ever sent to a server.
 // =====================================================================
 
+// NOTE: ffmpeg.wasm's own worker rejects with a plain STRING (via
+// `e.toString()`), not an Error object -- so `err.message` on anything
+// that bubbles up from an ffmpeg operation is `undefined`. This helper
+// normalizes any thrown value into a readable string.
+function errorMessage(err) {
+  if (err instanceof Error) return err.message || err.toString() || "Unknown error";
+  if (typeof err === "string") return err;
+  try {
+    return String(err);
+  } catch (e) {
+    return "Unknown error";
+  }
+}
+
 const FFMPEG_CORE_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
 
 let ffmpegInstance = null;
@@ -1066,14 +1080,20 @@ async function extractCoverFrame(ffmpeg, videoBytes, { timestamp, frameIndex, au
   }
   args.push("-q:v", "2", "-bitexact", outName);
 
-  await ffmpeg.exec(args);
+  const execCode = await ffmpeg.exec(args);
+  if (execCode !== 0) {
+    console.error("ffmpeg exec returned code", execCode, "for args", args);
+  }
 
   let data;
   try {
     data = await ffmpeg.readFile(outName);
   } catch (e) {
+    console.error(e);
     throw new Error(
-      "Could not extract a cover frame. If you set an exact frame number, it may be beyond the video's length."
+      "Could not extract a cover frame" +
+        (execCode !== 0 ? " (ffmpeg exited with code " + execCode + ")" : "") +
+        ". If you set an exact frame number, it may be beyond the video's length."
     );
   }
   await safeDelete(ffmpeg, inName);
@@ -1181,6 +1201,14 @@ async function convertVideoToMotionPhoto(file, options, onStatus) {
 // =====================================================================
 // UI wiring
 // =====================================================================
+
+window.addEventListener("unhandledrejection", (event) => {
+  // Safety net: if any promise rejects with a raw string (as ffmpeg.wasm's
+  // own worker does on internal errors) instead of an Error, this keeps
+  // it from silently becoming "Uncaught (in promise)" with no useful info
+  // in the console.
+  console.error("Unhandled rejection:", event.reason);
+});
 
 (function () {
   "use strict";
@@ -1339,7 +1367,8 @@ async function convertVideoToMotionPhoto(file, options, onStatus) {
       previewImg.src = URL.createObjectURL(blob);
       previewFrame.style.display = "block";
     } catch (err) {
-      alert("Couldn't preview that frame: " + err.message);
+      console.error(err);
+      alert("Couldn't preview that frame: " + errorMessage(err));
     } finally {
       hideProgress();
       previewBtn.disabled = false;
@@ -1371,7 +1400,8 @@ async function convertVideoToMotionPhoto(file, options, onStatus) {
         entry.outputName = entry.file.name.replace(/\.[^.]+$/, "") + ".jpg";
         entry.status = "Done";
       } catch (err) {
-        entry.status = "Error: " + err.message;
+        console.error(err);
+        entry.status = "Error: " + errorMessage(err);
       }
       renderFileList();
     }
@@ -1411,7 +1441,8 @@ async function convertVideoToMotionPhoto(file, options, onStatus) {
         a.textContent = "Download video";
         row.appendChild(a);
       } catch (err) {
-        row.querySelector(".status").textContent = "Error: " + err.message;
+        console.error(err);
+        row.querySelector(".status").textContent = "Error: " + errorMessage(err);
         row.querySelector(".status").classList.add("error");
       }
     }
@@ -1470,7 +1501,8 @@ async function convertVideoToMotionPhoto(file, options, onStatus) {
 
       renderInspectReport(lines);
     } catch (err) {
-      inspectReportEl.textContent = "Error: " + err.message;
+      console.error(err);
+      inspectReportEl.textContent = "Error: " + errorMessage(err);
     }
   });
 
