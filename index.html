@@ -1060,6 +1060,49 @@ async function getFfmpeg(onStatus) {
   return ffmpegLoadPromise;
 }
 
+// ffmpeg.wasm's single-threaded core has a small, FIXED internal WASM
+// memory limit -- unrelated to how much free RAM the device actually
+// has. It's a known upstream issue that this limit can be hit after a
+// handful of exec() calls on the same instance, after which every
+// subsequent call fails the same way until a fresh FFmpeg instance is
+// created (see ffmpegwasm/ffmpeg.wasm#563 and similar reports). The
+// helpers below detect that specific failure and transparently recover
+// by discarding the current instance and loading a new one.
+
+function isRecoverableFfmpegError(err) {
+  const msg = errorMessage(err) || "";
+  return /memory access out of bounds|RuntimeError|out of memory|Aborted\(/i.test(msg);
+}
+
+async function resetFfmpeg() {
+  if (ffmpegInstance) {
+    try {
+      ffmpegInstance.terminate();
+    } catch (e) {
+      /* best effort -- the instance is being discarded either way */
+    }
+  }
+  ffmpegInstance = null;
+  ffmpegLoadPromise = null;
+}
+
+/**
+ * Run `taskFn` once. If it fails with the WASM memory-limit error
+ * described above, discard the current ffmpeg instance, load a fresh
+ * one, and retry `taskFn` exactly once more before giving up.
+ */
+async function withFfmpegRetry(taskFn, onStatus) {
+  try {
+    return await taskFn();
+  } catch (err) {
+    if (!isRecoverableFfmpegError(err)) throw err;
+    console.warn("ffmpeg hit its internal memory limit -- reloading and retrying once:", errorMessage(err));
+    if (onStatus) onStatus("ffmpeg ran into a memory limit, restarting and retrying…");
+    await resetFfmpeg();
+    return await taskFn();
+  }
+}
+
 /**
  * Extract a single still frame as a JPEG cover image.
  * Mirrors ffmpeg.py:extract_cover_frame -- same three selection modes,
@@ -1154,6 +1197,10 @@ async function readJpegDimensions(jpegBytes) {
 // =====================================================================
 
 async function convertVideoToMotionPhoto(file, options, onStatus) {
+  return withFfmpegRetry(() => _runConvert(file, options, onStatus), onStatus);
+}
+
+async function _runConvert(file, options, onStatus) {
   onStatus("Loading ffmpeg (first time only, ~30MB)…");
   const ffmpeg = await getFfmpeg();
 
@@ -1358,11 +1405,13 @@ window.addEventListener("unhandledrejection", (event) => {
     convertBtn.disabled = true;
     try {
       setProgress("Loading ffmpeg…", true);
-      const ffmpeg = await getFfmpeg();
       const opts = getCoverOptions();
       const videoBytes = new Uint8Array(await selectedFiles[0].file.arrayBuffer());
       setProgress("Extracting frame…", true);
-      const coverBytes = await extractCoverFrame(ffmpeg, videoBytes, opts);
+      const coverBytes = await withFfmpegRetry(async () => {
+        const ffmpeg = await getFfmpeg();
+        return extractCoverFrame(ffmpeg, videoBytes, opts);
+      });
       const blob = new Blob([coverBytes], { type: "image/jpeg" });
       previewImg.src = URL.createObjectURL(blob);
       previewFrame.style.display = "block";
@@ -1404,6 +1453,12 @@ window.addEventListener("unhandledrejection", (event) => {
         entry.status = "Error: " + errorMessage(err);
       }
       renderFileList();
+
+      // Discard the ffmpeg instance between files in a batch. Its
+      // internal WASM memory has a small fixed limit that can otherwise
+      // get exhausted after a handful of conversions in a row; starting
+      // each file fresh trades a short reload for much better reliability.
+      if (i < selectedFiles.length - 1) await resetFfmpeg();
     }
 
     hideProgress();
