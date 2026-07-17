@@ -383,6 +383,7 @@
     <div class="badge-row">
       <span class="badge">No upload — runs on your device</span>
       <span class="badge">Xiaomi Gallery / Google Photos compatible</span>
+      <span class="badge" id="engineBadge" title="Which ffmpeg engine this page is using">Engine: not loaded yet</span>
     </div>
   </header>
 
@@ -1042,8 +1043,6 @@ function friendlyErrorMessage(err) {
   return msg;
 }
 
-const FFMPEG_CORE_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
-
 let ffmpegInstance = null;
 let ffmpegLoadPromise = null;
 
@@ -1052,6 +1051,29 @@ async function blobUrlFor(url, mimeType) {
   if (!resp.ok) throw new Error(`Failed to fetch ${url}: ${resp.status}`);
   const buf = await resp.arrayBuffer();
   return URL.createObjectURL(new Blob([buf], { type: mimeType }));
+}
+
+const FFMPEG_CORE_SINGLE_THREAD = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
+const FFMPEG_CORE_MULTI_THREAD = "https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.6/dist/umd";
+
+// `crossOriginIsolated` is only `true` when the page was served with the
+// Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy headers the
+// multi-threaded core needs (SharedArrayBuffer requires it). Plain GitHub
+// Pages hosting cannot set these headers at all, so this will be `false`
+// there -- Cloudflare Pages / Netlify / Vercel can, via the included
+// `_headers` / `vercel.json` files, which is what flips this to `true`.
+let ffmpegEngine = null; // set once loaded: "multi-thread" or "single-thread"
+
+function updateEngineBadge() {
+  const el = document.getElementById("engineBadge");
+  if (!el) return;
+  if (ffmpegEngine === "multi-thread") {
+    el.textContent = "Engine: multi-thread (handles longer videos)";
+  } else if (ffmpegEngine === "single-thread") {
+    el.textContent = "Engine: single-thread (best for short clips)";
+  } else {
+    el.textContent = "Engine: not loaded yet";
+  }
 }
 
 async function getFfmpeg(onStatus) {
@@ -1068,9 +1090,33 @@ async function getFfmpeg(onStatus) {
       if (onStatus) onStatus(message);
     });
 
-    const coreURL = await blobUrlFor(`${FFMPEG_CORE_BASE}/ffmpeg-core.js`, "text/javascript");
-    const wasmURL = await blobUrlFor(`${FFMPEG_CORE_BASE}/ffmpeg-core.wasm`, "application/wasm");
-    await ffmpeg.load({ coreURL, wasmURL });
+    const useMultiThread = window.crossOriginIsolated === true;
+    const base = useMultiThread ? FFMPEG_CORE_MULTI_THREAD : FFMPEG_CORE_SINGLE_THREAD;
+
+    try {
+      const coreURL = await blobUrlFor(`${base}/ffmpeg-core.js`, "text/javascript");
+      const wasmURL = await blobUrlFor(`${base}/ffmpeg-core.wasm`, "application/wasm");
+      const loadOpts = { coreURL, wasmURL };
+      if (useMultiThread) {
+        loadOpts.workerURL = await blobUrlFor(`${base}/ffmpeg-core.worker.js`, "text/javascript");
+      }
+      await ffmpeg.load(loadOpts);
+      ffmpegEngine = useMultiThread ? "multi-thread" : "single-thread";
+      updateEngineBadge();
+    } catch (e) {
+      // If the multi-thread core fails to load or init for any reason,
+      // fall back to the single-thread core rather than failing outright.
+      if (useMultiThread) {
+        console.warn("Multi-thread ffmpeg core failed, falling back to single-thread:", errorMessage(e));
+        const coreURL = await blobUrlFor(`${FFMPEG_CORE_SINGLE_THREAD}/ffmpeg-core.js`, "text/javascript");
+        const wasmURL = await blobUrlFor(`${FFMPEG_CORE_SINGLE_THREAD}/ffmpeg-core.wasm`, "application/wasm");
+        await ffmpeg.load({ coreURL, wasmURL });
+        ffmpegEngine = "single-thread";
+        updateEngineBadge();
+      } else {
+        throw e;
+      }
+    }
 
     ffmpegInstance = ffmpeg;
     return ffmpeg;
@@ -1103,6 +1149,8 @@ async function resetFfmpeg() {
   }
   ffmpegInstance = null;
   ffmpegLoadPromise = null;
+  ffmpegEngine = null;
+  updateEngineBadge();
 }
 
 /**
@@ -1253,8 +1301,123 @@ async function safeDelete(ffmpeg, name) {
   }
 }
 
-/** Read a JPEG's pixel dimensions (no ffmpeg needed -- the browser can decode it). */
-async function readJpegDimensions(jpegBytes) {
+/**
+ * Extract a cover frame using the browser's OWN video decoder (an
+ * offscreen <video> + <canvas>) instead of ffmpeg.wasm.
+ *
+ * This is the key fix for long/large videos: ffmpeg.wasm's single-
+ * threaded core has a small, FIXED WASM memory ceiling, and decoding
+ * frames (via the `select` or `thumbnail` filters) is exactly the kind
+ * of operation that hits it on longer or higher-resolution videos. A
+ * real browser's native video decoder has no such ceiling -- it's the
+ * same decoder used for normal video playback, built for handling
+ * arbitrarily long files.
+ *
+ * The trade-off: HTMLVideoElement seeking is time-based and only
+ * approximately frame-accurate (browsers may snap to the nearest
+ * keyframe rather than decode to an exact frame number), unlike
+ * ffmpeg's `select` filter. For choosing a Motion Photo's cover image,
+ * being off by a frame or two is an acceptable trade for not crashing
+ * on long videos.
+ */
+async function extractCoverFrameNative(source, { timestamp, frameIndex, auto }) {
+  const blob = source instanceof Uint8Array ? new Blob([source], { type: "video/mp4" }) : source;
+  const url = URL.createObjectURL(blob);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.src = url;
+
+  try {
+    await new Promise((resolve, reject) => {
+      video.addEventListener("loadedmetadata", resolve, { once: true });
+      video.addEventListener(
+        "error",
+        () => reject(new Error("Your browser couldn't decode this video.")),
+        { once: true }
+      );
+    });
+
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    let targetTime;
+    if (auto) {
+      // No frame-comparison heuristic here (that's what ffmpeg's
+      // `thumbnail` filter did) -- just avoid frame 0, which is often a
+      // black or fading-in leader frame.
+      targetTime = duration > 2 ? 1 : duration * 0.15;
+    } else if (frameIndex !== null && frameIndex !== undefined) {
+      // No reliable way to get the exact frame rate from a plain
+      // <video> element -- 30fps is a reasonable assumption for picking
+      // a cover frame (exact frame-accuracy isn't critical here).
+      targetTime = frameIndex / 30;
+    } else {
+      targetTime = parseFloat(timestamp);
+      if (!Number.isFinite(targetTime)) targetTime = 0;
+    }
+    targetTime = Math.max(0, Math.min(targetTime, Math.max(0, duration - 0.05)));
+
+    await new Promise((resolve, reject) => {
+      const onError = () => reject(new Error("Your browser couldn't seek to that point in the video."));
+      video.addEventListener(
+        "seeked",
+        () => {
+          video.removeEventListener("error", onError);
+          resolve();
+        },
+        { once: true }
+      );
+      video.addEventListener("error", onError, { once: true });
+      video.currentTime = targetTime;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blobOut = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("Your browser couldn't encode the cover frame."))),
+        "image/jpeg",
+        0.92
+      );
+    });
+
+    return {
+      bytes: new Uint8Array(await blobOut.arrayBuffer()),
+      width: canvas.width,
+      height: canvas.height,
+    };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * Try native (browser-decoder) cover extraction first -- fast and
+ * immune to the WASM memory ceiling. Falls back to ffmpeg.wasm only if
+ * that fails, e.g. for a codec/container the browser can't decode
+ * natively but ffmpeg can. The ffmpeg fallback keeps its own retry
+ * behavior for the WASM memory-limit crash (see withFfmpegRetry).
+ */
+async function extractCoverFrameWithFallback(videoBytes, options, onStatus) {
+  try {
+    return await extractCoverFrameNative(videoBytes, options);
+  } catch (nativeErr) {
+    console.warn("Native cover extraction failed, falling back to ffmpeg:", errorMessage(nativeErr));
+    if (onStatus) onStatus("Falling back to ffmpeg for this video…");
+    const bytes = await withFfmpegRetry(async () => {
+      const ffmpeg = await getFfmpeg();
+      return extractCoverFrame(ffmpeg, videoBytes, options);
+    }, onStatus);
+    const dims = await readJpegDimensionsFallback(bytes);
+    return { bytes, width: dims.width, height: dims.height };
+  }
+}
+
+async function readJpegDimensionsFallback(jpegBytes) {
   const blob = new Blob([jpegBytes], { type: "image/jpeg" });
   const bitmap = await createImageBitmap(blob);
   const dims = { width: bitmap.width, height: bitmap.height };
@@ -1267,32 +1430,38 @@ async function readJpegDimensions(jpegBytes) {
 // =====================================================================
 
 async function convertVideoToMotionPhoto(file, options, onStatus) {
-  return withFfmpegRetry(() => _runConvert(file, options, onStatus), onStatus);
+  const needsFfmpeg = Boolean(options.trimStart || options.trimEnd || options.stripAudio);
+  if (needsFfmpeg) {
+    return withFfmpegRetry(() => _runConvert(file, options, onStatus), onStatus);
+  }
+  // No trim/audio-strip requested -- skip ffmpeg entirely. This is both
+  // faster (no ~30MB core to load) and immune to the WASM memory
+  // ceiling that only ffmpeg-based operations are subject to.
+  return _runConvert(file, options, onStatus);
 }
 
 async function _runConvert(file, options, onStatus) {
-  onStatus("Loading ffmpeg (first time only, ~30MB)…");
-  const ffmpeg = await getFfmpeg();
-
   let videoBytes = new Uint8Array(await file.arrayBuffer());
 
   if (options.trimStart || options.trimEnd) {
+    onStatus("Loading ffmpeg to trim the video…");
+    const ffmpeg = await getFfmpeg();
     onStatus("Trimming video…");
     videoBytes = await trimVideo(ffmpeg, videoBytes, options.trimStart, options.trimEnd);
   }
 
   if (options.stripAudio) {
+    onStatus("Loading ffmpeg to remove audio…");
+    const ffmpeg = await getFfmpeg();
     onStatus("Removing audio…");
     videoBytes = await stripAudio(ffmpeg, videoBytes);
   }
 
   onStatus("Extracting cover frame…");
-  const coverBytes = await extractCoverFrame(ffmpeg, videoBytes, options);
+  const cover = await extractCoverFrameWithFallback(videoBytes, options, onStatus);
 
   onStatus("Building metadata…");
-  const dims = await readJpegDimensions(coverBytes);
-
-  const headerSegments = [buildExifSegment({ imageWidth: dims.width, imageHeight: dims.height })];
+  const headerSegments = [buildExifSegment({ imageWidth: cover.width, imageHeight: cover.height })];
   if (options.enableXiaomi) headerSegments.push(buildXiaomiSegment());
   const xmpPacket = buildMotionPhotoXmp(videoBytes.length);
   headerSegments.push(buildXmpSegmentRaw(xmpPacket));
@@ -1301,7 +1470,7 @@ async function _runConvert(file, options, onStatus) {
   const jfifSegment = buildJfifSegment();
 
   onStatus("Assembling motion photo…");
-  const assembled = assembleMotionPhoto(coverBytes, videoBytes, headerSegments, postApp0Segments, jfifSegment);
+  const assembled = assembleMotionPhoto(cover.bytes, videoBytes, headerSegments, postApp0Segments, jfifSegment);
 
   const validation = validateMotionPhoto(assembled);
   if (!validation.isValid) {
@@ -1312,7 +1481,7 @@ async function _runConvert(file, options, onStatus) {
     throw new Error(`Generated file failed validation: ${failed}`);
   }
 
-  return { bytes: assembled, coverBytes, dims, validation };
+  return { bytes: assembled, coverBytes: cover.bytes, dims: { width: cover.width, height: cover.height }, validation };
 }
 
 // =====================================================================
@@ -1474,15 +1643,11 @@ window.addEventListener("unhandledrejection", (event) => {
     previewBtn.disabled = true;
     convertBtn.disabled = true;
     try {
-      setProgress("Loading ffmpeg…", true);
       const opts = getCoverOptions();
-      const videoBytes = new Uint8Array(await selectedFiles[0].file.arrayBuffer());
       setProgress("Extracting frame…", true);
-      const coverBytes = await withFfmpegRetry(async () => {
-        const ffmpeg = await getFfmpeg();
-        return extractCoverFrame(ffmpeg, videoBytes, opts);
-      });
-      const blob = new Blob([coverBytes], { type: "image/jpeg" });
+      const videoBytes = new Uint8Array(await selectedFiles[0].file.arrayBuffer());
+      const cover = await extractCoverFrameWithFallback(videoBytes, opts, (msg) => setProgress(msg, true));
+      const blob = new Blob([cover.bytes], { type: "image/jpeg" });
       previewImg.src = URL.createObjectURL(blob);
       previewFrame.style.display = "block";
     } catch (err) {
@@ -1524,7 +1689,8 @@ window.addEventListener("unhandledrejection", (event) => {
       }
       renderFileList();
 
-      // Discard the ffmpeg instance between files in a batch. Its
+      // Discard the ffmpeg instance between files in a batch (a no-op if
+      // this file's options never needed ffmpeg in the first place). Its
       // internal WASM memory has a small fixed limit that can otherwise
       // get exhausted after a handful of conversions in a row; starting
       // each file fresh trades a short reload for much better reliability.

@@ -120,6 +120,21 @@ The web app (`index.html`) mirrors the CLI:
 - Extract the video back out of an existing Motion Photo
 - Inspect a file's structure and validation report
 
+**How cover frame extraction works:** the web app grabs the cover frame
+using the browser's own video decoder (an offscreen `<video>` +
+`<canvas>`), not ffmpeg. ffmpeg.wasm's single-threaded core has a small,
+*fixed* WASM memory ceiling (unrelated to the device's actual RAM), and
+decoding frames is exactly the kind of operation that can exceed it on
+long or high-resolution videos. The browser's native decoder has no such
+ceiling, so this is what makes long videos work reliably in the browser,
+much like the CLI. The trade-off: "by frame number" becomes an
+approximate seek (assumes 30fps) rather than ffmpeg's exact frame
+count, and "auto-pick" just avoids frame 0 instead of comparing frames
+for sharpness. ffmpeg.wasm is still used as a fallback if the browser
+can't decode a particular video's codec, and remains the only way trim /
+audio-removal are done (both need real video-processing, not just
+decoding a single frame).
+
 ## Testing (optional)
 
 To run the test suite:
