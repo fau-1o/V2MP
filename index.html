@@ -1023,6 +1023,25 @@ function errorMessage(err) {
   }
 }
 
+/**
+ * Like errorMessage(), but adds an actionable suggestion when the error
+ * is ffmpeg.wasm's WASM memory-limit crash and a retry already happened
+ * (i.e. it failed twice in a row -- so this isn't a one-off fluke).
+ */
+function friendlyErrorMessage(err) {
+  const msg = errorMessage(err);
+  if (isRecoverableFfmpegError(err)) {
+    return (
+      msg +
+      " — this can happen with long or high-resolution videos, since ffmpeg's " +
+      "in-browser engine has a fixed memory limit (this is unrelated to your " +
+      "device's free RAM). Try trimming the video to a shorter clip first, or " +
+      "use \"By timestamp\" instead of \"By frame number\"."
+    );
+  }
+  return msg;
+}
+
 const FFMPEG_CORE_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
 
 let ffmpegInstance = null;
@@ -1108,19 +1127,70 @@ async function withFfmpegRetry(taskFn, onStatus) {
  * Mirrors ffmpeg.py:extract_cover_frame -- same three selection modes,
  * same -bitexact flag to avoid a stray COM marker.
  */
+/**
+ * Probe a written file's frame rate by running ffmpeg with just `-i`
+ * (which always exits non-zero since no output is given) and reading
+ * the fps out of the stream-info it prints to its log. @ffmpeg/core's
+ * single-threaded build doesn't bundle a separate ffprobe binary, so
+ * this is the standard way to get basic stream info from it.
+ */
+async function probeFps(ffmpeg, inName) {
+  const lines = [];
+  const handler = ({ message }) => lines.push(message);
+  ffmpeg.on("log", handler);
+  try {
+    await ffmpeg.exec(["-i", inName]);
+  } catch (e) {
+    /* expected -- ffmpeg always errors here since no output was given */
+  } finally {
+    ffmpeg.off("log", handler);
+  }
+  const match = lines.join("\n").match(/(\d+(?:\.\d+)?)\s*fps/);
+  return match ? parseFloat(match[1]) : null;
+}
+
 async function extractCoverFrame(ffmpeg, videoBytes, { timestamp, frameIndex, auto }) {
   const inName = "cover_in_" + Math.random().toString(36).slice(2) + ".mp4";
   const outName = "cover_out_" + Math.random().toString(36).slice(2) + ".jpg";
   await ffmpeg.writeFile(inName, videoBytes);
 
   const args = ["-y"];
+
   if (auto) {
-    args.push("-i", inName, "-vf", "thumbnail=30", "-frames:v", "1");
+    // -ss skips a likely-uninteresting first second; `thumbnail` holds
+    // every sampled frame in memory at once to compare them, so keeping
+    // the sample count modest (10, not dozens) matters on longer or
+    // higher-resolution videos, which can otherwise exceed ffmpeg.wasm's
+    // fixed WASM memory ceiling (unrelated to the device's actual RAM).
+    args.push("-ss", "1", "-i", inName, "-vf", "thumbnail=10", "-frames:v", "1");
   } else if (frameIndex !== null && frameIndex !== undefined) {
-    args.push("-i", inName, "-vf", `select=eq(n\\,${frameIndex})`, "-vsync", "vfr", "-frames:v", "1");
+    // A bare `select=eq(n\,N)` with no seek forces ffmpeg to decode
+    // EVERY frame from the very start of the file to count up to frame
+    // N -- for a long or high-resolution video that alone can exceed
+    // the memory ceiling. Seeking close first (cheap, keyframe-based)
+    // and using `select` only to fine-tune the last couple of seconds
+    // keeps the number of frames actually decoded small.
+    const fps = await probeFps(ffmpeg, inName);
+    if (fps && fps > 0) {
+      const targetTime = frameIndex / fps;
+      const seekTime = Math.max(0, targetTime - 2); // 2s safety margin
+      const framesToSkip = Math.max(0, Math.round((targetTime - seekTime) * fps));
+      args.push(
+        "-ss", seekTime.toFixed(3),
+        "-i", inName,
+        "-vf", `select=eq(n\\,${framesToSkip})`,
+        "-vsync", "vfr",
+        "-frames:v", "1"
+      );
+    } else {
+      // Couldn't determine the frame rate (unusual) -- fall back to the
+      // exact but more memory-hungry method.
+      args.push("-i", inName, "-vf", `select=eq(n\\,${frameIndex})`, "-vsync", "vfr", "-frames:v", "1");
+    }
   } else {
     args.push("-ss", String(timestamp ?? "0.0"), "-i", inName, "-frames:v", "1");
   }
+
   args.push("-q:v", "2", "-bitexact", outName);
 
   const execCode = await ffmpeg.exec(args);
@@ -1417,7 +1487,7 @@ window.addEventListener("unhandledrejection", (event) => {
       previewFrame.style.display = "block";
     } catch (err) {
       console.error(err);
-      alert("Couldn't preview that frame: " + errorMessage(err));
+      alert("Couldn't preview that frame: " + friendlyErrorMessage(err));
     } finally {
       hideProgress();
       previewBtn.disabled = false;
@@ -1450,7 +1520,7 @@ window.addEventListener("unhandledrejection", (event) => {
         entry.status = "Done";
       } catch (err) {
         console.error(err);
-        entry.status = "Error: " + errorMessage(err);
+        entry.status = "Error: " + friendlyErrorMessage(err);
       }
       renderFileList();
 
