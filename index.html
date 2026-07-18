@@ -7,17 +7,23 @@
 <meta name="description" content="Convert MP4 videos into Google Motion Photo JPEGs, entirely in your browser. Nothing is uploaded.">
 <style>
   :root {
-    --bg: #0f1115;
-    --panel: #161922;
-    --panel-2: #1d212c;
-    --border: #2a2f3d;
-    --text: #e7e9ee;
-    --text-dim: #9aa1b2;
-    --accent: #5b8cff;
-    --accent-dim: #2f4680;
-    --good: #4ade80;
-    --bad: #f87171;
-    --radius: 10px;
+    --bg: #0c0c0d;
+    --surface: #151416;
+    --surface-2: #1c1b1e;
+    --surface-3: #242226;
+    --border: #2b292d;
+    --border-strong: #3a373c;
+    --text: #f1efec;
+    --text-dim: #9c999f;
+    --text-faint: #6f6c72;
+    --accent: #d6a35c;
+    --accent-hover: #e2b26e;
+    --accent-ink: #1c1508;
+    --good: #86bf8f;
+    --bad: #e0857f;
+    --radius-lg: 14px;
+    --radius-md: 10px;
+    --radius-sm: 7px;
     --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
   }
 
@@ -30,6 +36,7 @@
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
 
   body { padding-bottom: 4rem; }
@@ -43,14 +50,15 @@
   }
 
   header.top {
-    padding: 2.5rem 0 1.5rem;
+    padding: 3rem 0 1.75rem;
     text-align: center;
   }
 
   header.top h1 {
-    font-size: 2rem;
-    margin: 0 0 0.35rem;
-    letter-spacing: -0.02em;
+    font-size: 1.9rem;
+    font-weight: 650;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.01em;
   }
 
   header.top p {
@@ -62,82 +70,97 @@
   .badge-row {
     display: flex;
     justify-content: center;
-    gap: 0.5rem;
-    margin-top: 0.85rem;
+    gap: 1.1rem;
+    margin-top: 1.1rem;
     flex-wrap: wrap;
   }
 
   .badge {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.25rem 0.7rem;
+    font-size: 0.78rem;
+    color: var(--text-faint);
   }
 
   section.card {
-    background: var(--panel);
+    background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    padding: 1.6rem;
     margin-bottom: 1.25rem;
   }
 
   section.card h2 {
-    font-size: 1.05rem;
-    margin: 0 0 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 1.1rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
+    color: var(--text);
   }
 
   section.card h2 .num {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.4rem;
+    height: 1.4rem;
     border-radius: 50%;
-    background: var(--accent-dim);
-    color: var(--accent);
-    font-size: 0.8rem;
+    background: var(--surface-3);
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    font-weight: 600;
     flex: none;
   }
 
+  .card-hint {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin: -0.5rem 0 1.1rem;
+  }
+
+  /* ---- Drop zone ---- */
+
   .drop {
-    border: 1.5px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 1.75rem 1rem;
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 2rem 1rem;
     text-align: center;
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s ease, background 0.15s ease;
   }
 
   .drop:hover, .drop.dragover {
     border-color: var(--accent);
-    background: rgba(91, 140, 255, 0.06);
+    background: rgba(214, 163, 92, 0.05);
   }
 
   .drop input[type="file"] { display: none; }
 
+  .drop .drop-icon {
+    color: var(--text-faint);
+    margin-bottom: 0.6rem;
+  }
+
   .drop .hint {
     color: var(--text-dim);
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     margin-top: 0.35rem;
   }
+
+  /* ---- File list ---- */
 
   .file-list {
     margin-top: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.55rem;
   }
 
   .file-row {
-    background: var(--panel-2);
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 0.9rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -150,11 +173,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
 
   .file-row .status {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text-dim);
     flex: none;
   }
@@ -164,82 +187,280 @@
 
   .file-row a.dl {
     flex: none;
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-ink);
     text-decoration: none;
     padding: 0.35rem 0.75rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
   }
 
-  .options-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.6rem;
-    margin: 1rem 0 0.75rem;
+  /* ---- Stage: preview + timeline ---- */
+
+  .stage {
+    margin-top: 1.1rem;
   }
 
-  @media (max-width: 520px) {
-    .options-grid { grid-template-columns: 1fr; }
-  }
-
-  .opt-choice {
+  .stage-preview {
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.65rem 0.75rem;
-    cursor: pointer;
+    aspect-ratio: 16 / 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .stage-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+
+  .stage-preview .stage-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    background: var(--surface-2);
+  }
+
+  .stage-preview .stage-loading.hidden { display: none; }
+
+  .timeline-wrap {
+    margin-top: 0.9rem;
+  }
+
+  .timeline {
+    position: relative;
+    height: 56px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--surface-3);
+    touch-action: none;
+    user-select: none;
+  }
+
+  .timeline canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .timeline-mask {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(8, 7, 6, 0.62);
+    pointer-events: none;
+  }
+
+  .trim-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 15px;
+    margin-left: -7.5px;
+    background: var(--accent);
+    cursor: ew-resize;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .trim-handle:hover, .trim-handle:focus-visible { background: var(--accent-hover); }
+
+  .trim-handle span {
+    width: 2px;
+    height: 16px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 2px;
+    display: block;
+  }
+
+  .trim-handle--left { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  .trim-handle--right { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+
+  .playhead {
+    position: absolute;
+    top: -6px;
+    bottom: -6px;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--text);
+    cursor: ew-resize;
+    touch-action: none;
+    z-index: 2;
+  }
+
+  .playhead-knob {
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--text);
+    box-shadow: 0 0 0 3px var(--surface);
+  }
+
+  .timeline-readout {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 0.55rem;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .timeline-readout .current {
+    color: var(--text);
+    font-weight: 600;
     font-size: 0.85rem;
   }
 
-  .opt-choice.active {
-    border-color: var(--accent);
-    background: rgba(91, 140, 255, 0.08);
+  .timeline-readout .current small {
+    color: var(--text-dim);
+    font-weight: 400;
+    font-size: 0.75rem;
+    margin-left: 0.3rem;
   }
 
-  .opt-choice input[type="radio"] { margin-right: 0.4rem; }
-
-  .opt-sub {
+  .timeline-actions {
+    display: flex;
+    justify-content: flex-end;
     margin-top: 0.6rem;
   }
 
-  .opt-sub input[type="number"], .opt-sub input[type="text"] {
-    width: 100%;
-    padding: 0.5rem 0.6rem;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 0.85rem;
+  .timeline-actions button {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
   }
 
-  label.checkline {
+  /* ---- Toggles (switches) ---- */
+
+  .switch-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    margin: 0.6rem 0;
-    cursor: pointer;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 0;
   }
 
+  .switch-row .switch-label {
+    font-size: 0.9rem;
+  }
+
+  .switch-row .switch-sub {
+    display: block;
+    color: var(--text-faint);
+    font-size: 0.78rem;
+    margin-top: 0.1rem;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 24px;
+    flex: none;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+
+  .switch .track {
+    position: absolute;
+    inset: 0;
+    background: var(--surface-3);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .switch .track::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .switch input:checked + .track {
+    background: rgba(214, 163, 92, 0.18);
+    border-color: var(--accent);
+  }
+
+  .switch input:checked + .track::before {
+    transform: translateX(16px);
+    background: var(--accent);
+  }
+
+  .switch input:focus-visible + .track {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---- Advanced / fields ---- */
+
   details.advanced {
-    margin-top: 0.9rem;
+    margin-top: 1rem;
     border-top: 1px solid var(--border);
-    padding-top: 0.75rem;
+    padding-top: 0.9rem;
   }
 
   details.advanced summary {
     cursor: pointer;
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     color: var(--text-dim);
     user-select: none;
+    list-style: none;
+  }
+
+  details.advanced summary::-webkit-details-marker { display: none; }
+
+  details.advanced summary::before {
+    content: "›";
+    display: inline-block;
+    margin-right: 0.4rem;
+    transition: transform 0.15s ease;
+  }
+
+  details.advanced[open] summary::before { transform: rotate(90deg); }
+
+  .adv-note {
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    margin: 0.8rem 0;
   }
 
   .adv-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
-    margin-top: 0.9rem;
+    margin-top: 0.5rem;
   }
 
   @media (max-width: 520px) {
@@ -248,7 +469,7 @@
 
   .field label {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text-dim);
     margin-bottom: 0.3rem;
   }
@@ -256,42 +477,60 @@
   .field input[type="text"], .field input[type="number"] {
     width: 100%;
     padding: 0.45rem 0.6rem;
-    background: var(--panel-2);
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--text);
     font-family: var(--mono);
     font-size: 0.85rem;
   }
 
+  .field input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* ---- Actions / buttons ---- */
+
   .actions {
     display: flex;
     gap: 0.6rem;
-    margin-top: 1.25rem;
+    margin-top: 1.3rem;
     flex-wrap: wrap;
   }
 
   button {
     font: inherit;
     cursor: pointer;
-    border-radius: 8px;
-    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
     padding: 0.65rem 1.1rem;
-    font-size: 0.9rem;
-    background: var(--panel-2);
+    font-size: 0.88rem;
+    background: var(--surface-2);
     color: var(--text);
+    transition: background 0.15s ease, border-color 0.15s ease;
   }
 
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:hover:not(:disabled) { border-color: var(--text-faint); }
+
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
 
   button.primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #fff;
+    color: var(--accent-ink);
     font-weight: 600;
   }
 
-  button.primary:hover:not(:disabled) { background: #4a7bef; }
+  button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  button.ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text-dim);
+  }
+
+  /* ---- Progress ---- */
 
   .progress-wrap {
     margin-top: 1rem;
@@ -301,15 +540,15 @@
   .progress-wrap.show { display: block; }
 
   .progress-label {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     color: var(--text-dim);
     margin-bottom: 0.4rem;
   }
 
   .progress-bar {
-    height: 6px;
+    height: 5px;
     border-radius: 3px;
-    background: var(--panel-2);
+    background: var(--surface-2);
     overflow: hidden;
   }
 
@@ -317,27 +556,17 @@
     height: 100%;
     background: var(--accent);
     width: 0%;
-    transition: width 0.2s;
+    transition: width 0.2s ease;
   }
 
-  .preview-frame {
-    margin-top: 1rem;
-    text-align: center;
-  }
-
-  .preview-frame img {
-    max-width: 100%;
-    max-height: 320px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-  }
+  /* ---- Report / inspect ---- */
 
   .report {
     font-family: var(--mono);
-    font-size: 0.8rem;
-    background: var(--panel-2);
+    font-size: 0.78rem;
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 0.9rem;
     margin-top: 0.9rem;
     white-space: pre-wrap;
@@ -351,13 +580,13 @@
 
   footer.bottom {
     text-align: center;
-    color: var(--text-dim);
-    font-size: 0.82rem;
+    color: var(--text-faint);
+    font-size: 0.8rem;
     margin-top: 2rem;
     padding: 0 1.25rem;
   }
 
-  footer.bottom a { color: var(--text-dim); text-decoration: underline; }
+  footer.bottom a { color: var(--text-faint); text-decoration: underline; }
 
   .sr-only {
     position: absolute;
@@ -392,53 +621,93 @@
     <h2><span class="num">1</span> Convert a video</h2>
 
     <div class="drop" id="dropZone" tabindex="0" role="button" aria-label="Choose video files">
-      <div>Drop video files here, or click to choose</div>
-      <div class="hint">MP4 works best. You can select more than one file.</div>
+      <div>Drop a video here, or click to choose</div>
+      <div class="hint">MP4 works best. Select more than one file to convert a batch.</div>
       <input type="file" id="fileInput" accept="video/*" multiple>
     </div>
 
     <div class="file-list" id="fileList" aria-live="polite"></div>
 
-    <div class="options-grid" role="radiogroup" aria-label="Cover frame selection">
-      <label class="opt-choice active" data-choice="timestamp">
-        <input type="radio" name="coverMode" value="timestamp" checked> By timestamp
-      </label>
-      <label class="opt-choice" data-choice="frame">
-        <input type="radio" name="coverMode" value="frame"> By frame number
-      </label>
-      <label class="opt-choice" data-choice="auto">
-        <input type="radio" name="coverMode" value="auto"> Auto-pick best
+    <div class="stage" id="stage" hidden>
+      <div class="stage-preview" id="stagePreview">
+        <img id="stagePreviewImg" alt="Selected cover frame">
+        <div class="stage-loading" id="stageLoading">Preparing preview…</div>
+      </div>
+
+      <div class="timeline-wrap" id="timelineWrap" hidden>
+        <div class="timeline" id="timeline">
+          <canvas id="filmstrip"></canvas>
+          <div class="timeline-mask" id="maskLeft"></div>
+          <div class="timeline-mask" id="maskRight"></div>
+          <div class="trim-handle trim-handle--left" id="trimLeft" tabindex="0" role="slider"
+               aria-label="Trim start"><span></span><span></span></div>
+          <div class="trim-handle trim-handle--right" id="trimRight" tabindex="0" role="slider"
+               aria-label="Trim end"><span></span><span></span></div>
+          <div class="playhead" id="playhead" tabindex="0" role="slider" aria-label="Cover frame position">
+            <div class="playhead-knob"></div>
+          </div>
+        </div>
+        <div class="timeline-readout">
+          <span id="trimStartLabel">0:00</span>
+          <span class="current" id="playheadLabel">0:00<small>cover frame</small></span>
+          <span id="trimEndLabel">0:00</span>
+        </div>
+        <div class="timeline-actions">
+          <button class="ghost" id="autoPickBtn" type="button">Auto-pick a frame</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="switch-row">
+      <span class="switch-label">
+        Keep audio
+        <span class="switch-sub">Leave on to keep the video's sound</span>
+      </span>
+      <label class="switch">
+        <input type="checkbox" id="keepAudio" checked>
+        <span class="track"></span>
       </label>
     </div>
 
-    <div class="opt-sub" id="coverModeSub">
-      <input type="text" id="coverTimestamp" value="0.0" placeholder="seconds, e.g. 2.5">
-    </div>
+    <details class="advanced" id="advancedDetails">
+      <summary>Advanced</summary>
 
-    <label class="checkline">
-      <input type="checkbox" id="keepAudio" checked>
-      Keep audio in the embedded video
-    </label>
+      <p class="adv-note" id="advNoteBatch" hidden>
+        Multiple files selected — the timestamp and trim range below apply to all of them.
+      </p>
 
-    <details class="advanced">
-      <summary>Advanced options</summary>
       <div class="adv-grid">
-        <label class="checkline">
+        <div class="field">
+          <label for="advTimestamp">Cover timestamp (seconds)</label>
+          <input type="text" id="advTimestamp" placeholder="e.g. 2.5">
+        </div>
+        <div class="field">
+          <label for="advFrame">Cover frame number (optional)</label>
+          <input type="number" id="advFrame" min="0" step="1" placeholder="e.g. 42">
+        </div>
+        <div class="field">
+          <label for="advTrimStart">Trim start (seconds)</label>
+          <input type="text" id="advTrimStart" placeholder="e.g. 0">
+        </div>
+        <div class="field">
+          <label for="advTrimEnd">Trim end (seconds)</label>
+          <input type="text" id="advTrimEnd" placeholder="e.g. 3">
+        </div>
+      </div>
+
+      <div class="switch-row">
+        <span class="switch-label">Embed Xiaomi compatibility tag</span>
+        <label class="switch">
           <input type="checkbox" id="enableXiaomi" checked>
-          Embed Xiaomi compatibility tag
+          <span class="track"></span>
         </label>
-        <label class="checkline">
+      </div>
+      <div class="switch-row">
+        <span class="switch-label">Embed color profile (ICC)</span>
+        <label class="switch">
           <input type="checkbox" id="embedIcc" checked>
-          Embed color profile (ICC)
+          <span class="track"></span>
         </label>
-        <div class="field">
-          <label for="trimStart">Trim start (seconds, optional)</label>
-          <input type="text" id="trimStart" placeholder="e.g. 0">
-        </div>
-        <div class="field">
-          <label for="trimEnd">Trim end (seconds, optional)</label>
-          <input type="text" id="trimEnd" placeholder="e.g. 3">
-        </div>
       </div>
     </details>
 
@@ -450,10 +719,6 @@
     <div class="progress-wrap" id="progressWrap">
       <div class="progress-label" id="progressLabel">Working…</div>
       <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
-    </div>
-
-    <div class="preview-frame" id="previewFrame" style="display:none">
-      <img id="previewImg" alt="Cover frame preview">
     </div>
   </section>
 
@@ -1499,55 +1764,226 @@ window.addEventListener("unhandledrejection", (event) => {
 (function () {
   "use strict";
 
-  // ---- Cover mode selector ----
-  const coverModeSub = document.getElementById("coverModeSub");
-  const coverChoices = document.querySelectorAll('.opt-choice[data-choice]');
+  // ---- Timeline (trim + cover-frame scrubber) ----
 
-  function renderCoverModeSub(mode) {
-    if (mode === "timestamp") {
-      coverModeSub.innerHTML =
-        '<input type="text" id="coverTimestamp" value="0.0" placeholder="seconds, e.g. 2.5">';
-    } else if (mode === "frame") {
-      coverModeSub.innerHTML =
-        '<input type="number" id="coverFrame" min="0" step="1" value="0" placeholder="frame number, e.g. 42">';
-    } else {
-      coverModeSub.innerHTML =
-        '<div style="color:var(--text-dim); font-size:0.85rem;">Scans the first few seconds and picks a clear, representative frame.</div>';
+  function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function minTrimGap(duration) {
+    return Math.min(0.5, Math.max(0.05, duration * 0.01));
+  }
+
+  function clampTrimStart(newStart, trimEnd, duration, gap) {
+    gap = gap ?? minTrimGap(duration);
+    return Math.max(0, Math.min(newStart, trimEnd - gap));
+  }
+
+  function clampTrimEnd(newEnd, trimStart, duration, gap) {
+    gap = gap ?? minTrimGap(duration);
+    return Math.min(duration, Math.max(newEnd, trimStart + gap));
+  }
+
+  function clampPlayhead(newPlayhead, trimStart, trimEnd) {
+    return Math.max(trimStart, Math.min(newPlayhead, trimEnd));
+  }
+
+  function timeToPercent(time, duration) {
+    if (!duration || duration <= 0) return 0;
+    return Math.max(0, Math.min(100, (time / duration) * 100));
+  }
+
+  function pointerXToTime(clientX, rect, duration) {
+    if (!rect.width) return 0;
+    const fraction = (clientX - rect.left) / rect.width;
+    return Math.max(0, Math.min(duration, fraction * duration));
+  }
+
+  function computeAutoPickTime(trimStart, trimEnd) {
+    const span = trimEnd - trimStart;
+    const offset = Math.min(1, span * 0.2);
+    return trimStart + offset;
+  }
+
+  function filmstripSliceRect(index, count, totalWidth) {
+    const sliceWidth = totalWidth / count;
+    const x = Math.round(index * sliceWidth);
+    const nextX = Math.round((index + 1) * sliceWidth);
+    return { x, width: Math.max(1, nextX - x) };
+  }
+
+  function filmstripSampleTime(index, count, duration) {
+    return ((index + 0.5) / count) * duration;
+  }
+
+  /**
+   * Drives the trim/playhead timeline widget: two draggable trim handles
+   * mark the range that will be embedded, and a draggable playhead line
+   * (constrained to that range) marks which frame becomes the Motion
+   * Photo's still cover image.
+   */
+  class TimelineController {
+    constructor(els, callbacks) {
+      this.els = els;
+      this.onPreviewNeeded = callbacks.onPreviewNeeded || (() => {});
+      this.onChange = callbacks.onChange || (() => {});
+      this.duration = 0;
+      this.trimStart = 0;
+      this.trimEnd = 0;
+      this.playhead = 0;
+      this._wireDrag();
+    }
+
+    setDuration(duration) {
+      this.duration = duration;
+      this.trimStart = 0;
+      this.trimEnd = duration;
+      this.playhead = computeAutoPickTime(0, duration);
+      this.render();
+    }
+
+    setPlayhead(time, { preview = true } = {}) {
+      this.playhead = clampPlayhead(time, this.trimStart, this.trimEnd);
+      this.render();
+      if (preview) this.onPreviewNeeded(this.playhead);
+      this.onChange();
+    }
+
+    setTrimStart(time) {
+      this.trimStart = clampTrimStart(time, this.trimEnd, this.duration);
+      if (this.playhead < this.trimStart) this.setPlayhead(this.trimStart, { preview: false });
+      this.render();
+      this.onChange();
+    }
+
+    setTrimEnd(time) {
+      this.trimEnd = clampTrimEnd(time, this.trimStart, this.duration);
+      if (this.playhead > this.trimEnd) this.setPlayhead(this.trimEnd, { preview: false });
+      this.render();
+      this.onChange();
+    }
+
+    autoPick() {
+      this.setPlayhead(computeAutoPickTime(this.trimStart, this.trimEnd));
+    }
+
+    /** True trim range differs meaningfully from "the whole video" -- i.e. trimming is actually needed. */
+    isTrimmed() {
+      const gap = minTrimGap(this.duration);
+      return this.trimStart > gap || this.trimEnd < this.duration - gap;
+    }
+
+    render() {
+      const { maskLeft, maskRight, trimLeft, trimRight, playhead, trimStartLabel, trimEndLabel, playheadLabel } =
+        this.els;
+      const startPct = timeToPercent(this.trimStart, this.duration);
+      const endPct = timeToPercent(this.trimEnd, this.duration);
+      const playPct = timeToPercent(this.playhead, this.duration);
+
+      maskLeft.style.left = "0%";
+      maskLeft.style.width = startPct + "%";
+      maskRight.style.left = endPct + "%";
+      maskRight.style.width = 100 - endPct + "%";
+      trimLeft.style.left = startPct + "%";
+      trimRight.style.left = endPct + "%";
+      playhead.style.left = playPct + "%";
+
+      trimStartLabel.textContent = formatTime(this.trimStart);
+      trimEndLabel.textContent = formatTime(this.trimEnd);
+      playheadLabel.textContent = formatTime(this.playhead);
+    }
+
+    _wireDrag() {
+      this._bindHandle(this.els.trimLeft, (time) => this.setTrimStart(time));
+      this._bindHandle(this.els.trimRight, (time) => this.setTrimEnd(time));
+      this._bindHandle(this.els.playhead, (time) => this.setPlayhead(time));
+    }
+
+    _bindHandle(el, onDrag) {
+      const timelineEl = this.els.timeline;
+      const onMove = (clientX) => {
+        const rect = timelineEl.getBoundingClientRect();
+        onDrag(pointerXToTime(clientX, rect, this.duration));
+      };
+      el.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        el.focus();
+        onMove(e.clientX);
+        const onPointerMove = (ev) => onMove(ev.clientX);
+        const onPointerUp = () => {
+          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener("pointerup", onPointerUp);
+        };
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp);
+      });
+      // Basic keyboard support (arrow keys) for accessibility.
+      el.addEventListener("keydown", (e) => {
+        const step = e.shiftKey ? 1 : 0.1;
+        if (e.key === "ArrowLeft") { e.preventDefault(); onDrag(this._currentTimeFor(el) - step); }
+        if (e.key === "ArrowRight") { e.preventDefault(); onDrag(this._currentTimeFor(el) + step); }
+      });
+    }
+
+    _currentTimeFor(el) {
+      if (el === this.els.trimLeft) return this.trimStart;
+      if (el === this.els.trimRight) return this.trimEnd;
+      return this.playhead;
     }
   }
 
-  coverChoices.forEach((choice) => {
-    choice.addEventListener("click", () => {
-      coverChoices.forEach((c) => c.classList.remove("active"));
-      choice.classList.add("active");
-      choice.querySelector('input[type="radio"]').checked = true;
-      renderCoverModeSub(choice.dataset.choice);
+  /** Build a filmstrip of evenly-spaced thumbnails into the timeline's canvas. */
+  async function buildFilmstrip(videoEl, canvas, sampleCount) {
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = canvas.clientWidth || 600;
+    const cssHeight = canvas.clientHeight || 56;
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+    const ctx = canvas.getContext("2d");
+    const duration = videoEl.duration || 0;
+
+    for (let i = 0; i < sampleCount; i++) {
+      const time = filmstripSampleTime(i, sampleCount, duration);
+      await seekVideo(videoEl, time);
+      const { x, width } = filmstripSliceRect(i, sampleCount, canvas.width);
+      // Cover-fit the frame into the slice (crop rather than squish).
+      const vw = videoEl.videoWidth || 1;
+      const vh = videoEl.videoHeight || 1;
+      const sliceAspect = width / canvas.height;
+      const videoAspect = vw / vh;
+      let sx, sy, sw, sh;
+      if (videoAspect > sliceAspect) {
+        sh = vh;
+        sw = vh * sliceAspect;
+        sx = (vw - sw) / 2;
+        sy = 0;
+      } else {
+        sw = vw;
+        sh = vw / sliceAspect;
+        sx = 0;
+        sy = (vh - sh) / 2;
+      }
+      ctx.drawImage(videoEl, sx, sy, sw, sh, x, 0, width, canvas.height);
+    }
+  }
+
+  function seekVideo(videoEl, time) {
+    return new Promise((resolve, reject) => {
+      const onSeeked = () => {
+        videoEl.removeEventListener("error", onError);
+        resolve();
+      };
+      const onError = () => {
+        videoEl.removeEventListener("seeked", onSeeked);
+        reject(new Error("Couldn't read a frame from this video."));
+      };
+      videoEl.addEventListener("seeked", onSeeked, { once: true });
+      videoEl.addEventListener("error", onError, { once: true });
+      videoEl.currentTime = time;
     });
-  });
-
-  function getCoverOptions() {
-    const mode = document.querySelector('input[name="coverMode"]:checked').value;
-    const opts = { timestamp: "0.0", frameIndex: null, auto: false };
-    if (mode === "timestamp") {
-      opts.timestamp = document.getElementById("coverTimestamp").value || "0.0";
-    } else if (mode === "frame") {
-      const v = document.getElementById("coverFrame").value;
-      opts.frameIndex = v === "" ? 0 : parseInt(v, 10);
-    } else {
-      opts.auto = true;
-    }
-    return opts;
-  }
-
-  function getAllOptions() {
-    return {
-      ...getCoverOptions(),
-      stripAudio: !document.getElementById("keepAudio").checked,
-      enableXiaomi: document.getElementById("enableXiaomi").checked,
-      embedIcc: document.getElementById("embedIcc").checked,
-      trimStart: document.getElementById("trimStart").value.trim(),
-      trimEnd: document.getElementById("trimEnd").value.trim(),
-    };
   }
 
   // ---- Generic drag & drop wiring ----
@@ -1587,10 +2023,140 @@ window.addEventListener("unhandledrejection", (event) => {
   const progressFill = document.getElementById("progressFill");
   const convertBtn = document.getElementById("convertBtn");
   const previewBtn = document.getElementById("previewBtn");
-  const previewFrame = document.getElementById("previewFrame");
-  const previewImg = document.getElementById("previewImg");
+  const stageEl = document.getElementById("stage");
+  const stagePreviewImg = document.getElementById("stagePreviewImg");
+  const stageLoading = document.getElementById("stageLoading");
+  const timelineWrapEl = document.getElementById("timelineWrap");
+  const advNoteBatch = document.getElementById("advNoteBatch");
+  const advTimestamp = document.getElementById("advTimestamp");
+  const advFrame = document.getElementById("advFrame");
+  const advTrimStart = document.getElementById("advTrimStart");
+  const advTrimEnd = document.getElementById("advTrimEnd");
 
   let selectedFiles = [];
+  let timelineVideoEl = null; // offscreen <video> backing the active timeline, if any
+  let timelineActive = false;
+  let previewSeq = 0; // guards against out-of-order async preview updates
+
+  const timeline = new TimelineController(
+    {
+      timeline: document.getElementById("timeline"),
+      maskLeft: document.getElementById("maskLeft"),
+      maskRight: document.getElementById("maskRight"),
+      trimLeft: document.getElementById("trimLeft"),
+      trimRight: document.getElementById("trimRight"),
+      playhead: document.getElementById("playhead"),
+      trimStartLabel: document.getElementById("trimStartLabel"),
+      trimEndLabel: document.getElementById("trimEndLabel"),
+      playheadLabel: document.getElementById("playheadLabel"),
+    },
+    {
+      onPreviewNeeded: (time) => scheduleTimelinePreview(time),
+      onChange: () => syncAdvancedFieldsFromTimeline(),
+    }
+  );
+
+  function syncAdvancedFieldsFromTimeline() {
+    advTimestamp.value = timeline.playhead.toFixed(2);
+    advTrimStart.value = timeline.trimStart > 0.005 ? timeline.trimStart.toFixed(2) : "";
+    advTrimEnd.value =
+      timeline.trimEnd < timeline.duration - 0.005 ? timeline.trimEnd.toFixed(2) : "";
+  }
+
+  let previewDebounceTimer = null;
+  function scheduleTimelinePreview(time) {
+    clearTimeout(previewDebounceTimer);
+    previewDebounceTimer = setTimeout(() => renderTimelinePreviewFrame(time), 80);
+  }
+
+  async function renderTimelinePreviewFrame(time) {
+    if (!timelineVideoEl) return;
+    const mySeq = ++previewSeq;
+    try {
+      await seekVideo(timelineVideoEl, time);
+      if (mySeq !== previewSeq) return; // a newer drag position superseded this one
+      const canvas = document.createElement("canvas");
+      canvas.width = timelineVideoEl.videoWidth;
+      canvas.height = timelineVideoEl.videoHeight;
+      canvas.getContext("2d").drawImage(timelineVideoEl, 0, 0);
+      canvas.toBlob((blob) => {
+        if (mySeq !== previewSeq || !blob) return;
+        stagePreviewImg.src = URL.createObjectURL(blob);
+      }, "image/jpeg", 0.9);
+    } catch (e) {
+      console.warn("Timeline preview frame failed:", errorMessage(e));
+    }
+  }
+
+  async function loadTimelineForFile(file) {
+    timelineActive = false;
+    stageEl.hidden = false;
+    timelineWrapEl.hidden = true;
+    advNoteBatch.hidden = true;
+    stageLoading.classList.remove("hidden");
+    stagePreviewImg.removeAttribute("src");
+
+    if (timelineVideoEl) {
+      URL.revokeObjectURL(timelineVideoEl.src);
+      timelineVideoEl = null;
+    }
+
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = URL.createObjectURL(file);
+
+    try {
+      await new Promise((resolve, reject) => {
+        video.addEventListener("loadedmetadata", resolve, { once: true });
+        video.addEventListener("error", () => reject(new Error("Couldn't read this video file.")), { once: true });
+      });
+
+      timelineVideoEl = video;
+      timeline.setDuration(video.duration || 0);
+      syncAdvancedFieldsFromTimeline();
+
+      const canvas = document.getElementById("filmstrip");
+      const sampleCount = window.innerWidth < 480 ? 8 : 14;
+      await buildFilmstrip(video, canvas, sampleCount);
+
+      await renderTimelinePreviewFrame(timeline.playhead);
+
+      timelineWrapEl.hidden = false;
+      timelineActive = true;
+    } catch (err) {
+      console.warn("Couldn't set up the timeline for this video:", errorMessage(err));
+      stageEl.hidden = true;
+      timelineActive = false;
+    } finally {
+      stageLoading.classList.add("hidden");
+    }
+  }
+
+  function clearTimeline() {
+    timelineActive = false;
+    if (timelineVideoEl) {
+      URL.revokeObjectURL(timelineVideoEl.src);
+      timelineVideoEl = null;
+    }
+    stageEl.hidden = true;
+    timelineWrapEl.hidden = true;
+  }
+
+  function handleFileSelectionChanged() {
+    if (selectedFiles.length === 1) {
+      advNoteBatch.hidden = true;
+      loadTimelineForFile(selectedFiles[0].file);
+    } else {
+      clearTimeline();
+      advNoteBatch.hidden = selectedFiles.length <= 1;
+    }
+  }
+
+  document.getElementById("autoPickBtn").addEventListener("click", () => {
+    if (timelineActive) timeline.autoPick();
+  });
 
   function renderFileList() {
     fileListEl.innerHTML = "";
@@ -1622,7 +2188,7 @@ window.addEventListener("unhandledrejection", (event) => {
   wireDropZone(document.getElementById("dropZone"), document.getElementById("fileInput"), (files) => {
     selectedFiles = files.map((file) => ({ file, status: "Ready", downloadUrl: null, outputName: null }));
     renderFileList();
-    previewFrame.style.display = "none";
+    handleFileSelectionChanged();
   });
 
   function setProgress(label, indeterminate) {
@@ -1635,6 +2201,45 @@ window.addEventListener("unhandledrejection", (event) => {
     progressWrap.classList.remove("show");
   }
 
+  /**
+   * Cover/trim options for the current conversion(s). Uses the live
+   * timeline when it's active for a single selected file; otherwise
+   * falls back to the Advanced numeric fields (used as-is for batch
+   * conversions, since one timeline can't represent several videos of
+   * different lengths at once).
+   */
+  function getAllOptions() {
+    let timestamp = "0.0";
+    let trimStart = "";
+    let trimEnd = "";
+
+    if (timelineActive) {
+      timestamp = String(timeline.playhead);
+      if (timeline.isTrimmed()) {
+        trimStart = String(timeline.trimStart);
+        trimEnd = String(timeline.trimEnd);
+      }
+    } else {
+      timestamp = advTimestamp.value.trim() || "0.0";
+      trimStart = advTrimStart.value.trim();
+      trimEnd = advTrimEnd.value.trim();
+    }
+
+    const frameStr = advFrame.value.trim();
+    const frameIndex = frameStr === "" ? null : parseInt(frameStr, 10);
+
+    return {
+      timestamp,
+      frameIndex,
+      auto: false,
+      stripAudio: !document.getElementById("keepAudio").checked,
+      enableXiaomi: document.getElementById("enableXiaomi").checked,
+      embedIcc: document.getElementById("embedIcc").checked,
+      trimStart,
+      trimEnd,
+    };
+  }
+
   previewBtn.addEventListener("click", async () => {
     if (!selectedFiles.length) {
       alert("Choose a video first.");
@@ -1643,13 +2248,14 @@ window.addEventListener("unhandledrejection", (event) => {
     previewBtn.disabled = true;
     convertBtn.disabled = true;
     try {
-      const opts = getCoverOptions();
+      const opts = getAllOptions();
       setProgress("Extracting frame…", true);
       const videoBytes = new Uint8Array(await selectedFiles[0].file.arrayBuffer());
       const cover = await extractCoverFrameWithFallback(videoBytes, opts, (msg) => setProgress(msg, true));
       const blob = new Blob([cover.bytes], { type: "image/jpeg" });
-      previewImg.src = URL.createObjectURL(blob);
-      previewFrame.style.display = "block";
+      stageEl.hidden = false;
+      stageLoading.classList.add("hidden");
+      stagePreviewImg.src = URL.createObjectURL(blob);
     } catch (err) {
       console.error(err);
       alert("Couldn't preview that frame: " + friendlyErrorMessage(err));
@@ -1702,6 +2308,7 @@ window.addEventListener("unhandledrejection", (event) => {
     previewBtn.disabled = false;
   });
 
+  // ---- Extract video tool ----
   // ---- Extract video tool ----
   const extractResultEl = document.getElementById("extractResult");
 

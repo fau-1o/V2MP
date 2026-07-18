@@ -112,11 +112,13 @@ of being loaded from a CDN). You don't need to touch them.
 
 The web app (`index.html`) mirrors the CLI:
 
-- Cover frame by timestamp, exact frame number, or auto-pick
+- **A timeline editor** — drag the two side handles to trim the video,
+  and drag the center line to pick exactly which frame becomes the still
+  photo, with a live preview as you drag (single-file mode)
 - Keep or strip audio
-- Trim before embedding
 - Toggle the Xiaomi compatibility tag / ICC color profile
-- Convert multiple files in one go
+- Convert multiple files in one go (an "Advanced" panel lets you set one
+  timestamp/trim range that applies to the whole batch)
 - Extract the video back out of an existing Motion Photo
 - Inspect a file's structure and validation report
 
