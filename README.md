@@ -105,10 +105,13 @@ python main.py --help
 
 ## Web app feature parity
 
-The `vendor/` folder holds a couple of small files from the
-[ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) project itself
-(see `vendor/README.md` for why they need to live in this repo instead
-of being loaded from a CDN). You don't need to touch them.
+The web app is three files: `index.html` (markup), `style.css`
+(styling), and `app.js` (all the logic — JPEG/XMP building, ffmpeg
+wrapper, and UI wiring). The `vendor/` folder holds a couple of small
+files from the [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm)
+project itself (see `vendor/README.md` for why they need to live in this
+repo instead of being loaded from a CDN). You don't need to touch any of
+these to just use the app — they only matter if you're modifying it.
 
 The web app (`index.html`) mirrors the CLI:
 
